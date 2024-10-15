@@ -1,0 +1,644 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+
+```{r}
+library(tidyverse)
+source("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Classifiers/Scripts/CombineFolds.R")
+```
+
+```{r}
+#Import C9ALS files
+
+#500randomfeatures
+importances500C9ALS <- combine_folds_coef_importances(Disease = "C9ALS", Analysis = "500randomfeatures",
+                               FilePath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/500randomfeatures/",
+                               from = 1, to = 36494, by = 500,
+                               OutputPath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/500randomfeatures/")
+
+rf_importances500C9ALS <- importances500C9ALS$combined_import
+glm_importances500C9ALS <- importances500C9ALS$combined_coef
+
+#1000randomfeatures
+importances1000C9ALS <- combine_folds_coef_importances(Disease = "C9ALS", Analysis = "1000randomfeatures",
+                               FilePath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/1000randomfeatures/",
+                               from = 1, to = 36494, by = 1000,
+                               OutputPath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/1000randomfeatures/")
+
+rf_importances1000C9ALS <- importances1000C9ALS$combined_import
+glm_importances1000C9ALS <- importances1000C9ALS$combined_coef
+
+#2000randomfeatures
+importances2000C9ALS <- combine_folds_coef_importances(Disease = "C9ALS", Analysis = "2000randomfeatures",
+                               FilePath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/2000randomfeatures/",
+                               from = 1, to = 36000, by = 2000,
+                               OutputPath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/2000randomfeatures/")
+
+rf_importances2000C9ALS <- importances2000C9ALS$combined_import
+glm_importances2000C9ALS <- importances2000C9ALS$combined_coef
+
+#3000randomfeatures
+importances3000C9ALS <- combine_folds_coef_importances(Disease = "C9ALS", Analysis = "3000randomfeatures",
+                               FilePath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/3000randomfeatures/",
+                               from = 1, to = 36494, by = 3000,
+                               OutputPath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/3000randomfeatures/")
+
+rf_importances3000C9ALS <- importances3000C9ALS$combined_import
+glm_importances3000C9ALS <- importances3000C9ALS$combined_coef
+
+
+#MostVariableFeatures
+importancesVarFeatsC9ALS_1 <- combine_folds_coef_importances_nonrandomfeatures(Disease = "C9ALS", Analysis = "VariableFeatures", NrFolds = 5,
+                                      FilePath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/MostVariableFeatures/Parallel21-7/",
+                                      OutputPath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/MostVariableFeatures/Parallel21-7/")
+
+rf_importancesVarFeatsC9ALS_1 <- importancesVarFeatsC9ALS_1$combined_import
+glm_importancesVarFeatsC9ALS_1 <- importancesVarFeatsC9ALS_1$combined_coef
+
+
+importancesVarFeatsC9ALS_2 <- combine_folds_coef_importances_nonrandomfeatures(Disease = "C9ALS", Analysis = "VariableFeatures", NrFolds = 5,
+                                      FilePath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/MostVariableFeatures/Parallel23-7/",
+                                      OutputPath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/MostVariableFeatures/Parallel23-7/")
+
+rf_importancesVarFeatsC9ALS_2 <- importancesVarFeatsC9ALS_2$combined_import
+glm_importancesVarFeatsC9ALS_2 <- importancesVarFeatsC9ALS_2$combined_coef
+
+
+#TopPCs
+importancesTopPCsC9ALS_1 <- combine_folds_coef_importances_nonrandomfeatures(Disease = "C9ALS", Analysis = "TopPCs", NrFolds = 5,
+                                      FilePath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/TopPCs/Parallel21-7/",
+                                      OutputPath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/TopPCs/Parallel21-7/")
+
+rf_importancesTopPCsC9ALS_1 <- importancesTopPCsC9ALS_1$combined_import
+glm_importancesTopPCsC9ALS_1 <- importancesTopPCsC9ALS_1$combined_coef
+
+
+importancesTopPCsC9ALS_2 <- combine_folds_coef_importances_nonrandomfeatures(Disease = "C9ALS", Analysis = "TopPCs", NrFolds = 5,
+                                      FilePath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/TopPCs/Parallel23-7/",
+                                      OutputPath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/TopPCs/Parallel23-7/")
+
+rf_importancesTopPCsC9ALS_2 <- importancesTopPCsC9ALS_2$combined_import
+glm_importancesTopPCsC9ALS_2 <- importancesTopPCsC9ALS_2$combined_coef
+
+
+#DEWGCNA
+importancesDEWGCNAC9ALS_1 <- combine_folds_coef_importances_nonrandomfeatures(Disease = "C9ALS", Analysis = "DEWGCNA", NrFolds = 5,
+                                      FilePath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/DEWGCNA/29-7/",
+                                      OutputPath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/DEWGCNA/29-7/")
+
+rf_importancesDEWGCNAC9ALS_1 <- importancesDEWGCNAC9ALS_1$combined_import
+glm_importancesDEWGCNAC9ALS_1 <- importancesDEWGCNAC9ALS_1$combined_coef
+
+
+importancesDEWGCNAC9ALS_2 <- combine_folds_coef_importances_nonrandomfeatures(Disease = "C9ALS", Analysis = "DEWGCNA", NrFolds = 5,
+                                      FilePath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/DEWGCNA/30-7/",
+                                      OutputPath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/DEWGCNA/30-7/")
+
+rf_importancesDEWGCNAC9ALS_2 <- importancesDEWGCNAC9ALS_2$combined_import
+glm_importancesDEWGCNAC9ALS_2 <- importancesDEWGCNAC9ALS_2$combined_coef
+```
+
+
+```{r}
+#Import SALS files
+
+#500randomfeatures
+importances500SALS <- combine_folds_coef_importances(Disease = "SALS", Analysis = "500randomfeatures",
+                               FilePath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/500randomfeatures/",
+                               from = 1, to = 36494, by = 500,
+                               OutputPath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/500randomfeatures/")
+
+rf_importances500SALS <- importances500SALS$combined_import
+glm_importances500SALS <- importances500SALS$combined_coef
+
+#1000randomfeatures
+importances1000SALS <- combine_folds_coef_importances(Disease = "SALS", Analysis = "1000randomfeatures",
+                               FilePath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/1000randomfeatures/",
+                               from = 1, to = 36000, by = 1000,
+                               OutputPath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/1000randomfeatures/")
+
+rf_importances1000SALS <- importances1000SALS$combined_import
+glm_importances1000SALS <- importances1000SALS$combined_coef
+
+#2000randomfeatures
+importances2000SALS <- combine_folds_coef_importances(Disease = "SALS", Analysis = "2000randomfeatures",
+                               FilePath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/2000randomfeatures/",
+                               from = 1, to = 36000, by = 2000,
+                               OutputPath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/2000randomfeatures/")
+
+rf_importances2000SALS <- importances2000SALS$combined_import
+glm_importances2000SALS <- importances2000SALS$combined_coef
+
+#3000randomfeatures
+importances3000SALS <- combine_folds_coef_importances(Disease = "SALS", Analysis = "3000randomfeatures",
+                               FilePath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/3000randomfeatures/",
+                               from = 1, to = 36000, by = 3000,
+                               OutputPath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/3000randomfeatures/")
+
+rf_importances3000SALS <- importances3000SALS$combined_import
+glm_importances3000SALS <- importances3000SALS$combined_coef
+
+
+#MostVariableFeatures
+importancesVarFeatsSALS_1 <- combine_folds_coef_importances_nonrandomfeatures(Disease = "SALS", Analysis = "VariableFeatures", NrFolds = 5,
+                                      FilePath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/MostVariableFeatures/14-8/",
+                                      OutputPath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/MostVariableFeatures/14-8/")
+
+rf_importancesVarFeatsSALS_1 <- importancesVarFeatsSALS_1$combined_import
+glm_importancesVarFeatsSALS_1 <- importancesVarFeatsSALS_1$combined_coef
+
+
+importancesVarFeatsSALS_2 <- combine_folds_coef_importances_nonrandomfeatures(Disease = "SALS", Analysis = "VariableFeatures", NrFolds = 5,
+                                      FilePath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/MostVariableFeatures/15-8/",
+                                      OutputPath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/MostVariableFeatures/15-8/")
+
+rf_importancesVarFeatsSALS_2 <- importancesVarFeatsSALS_2$combined_import
+glm_importancesVarFeatsSALS_2 <- importancesVarFeatsSALS_2$combined_coef
+
+
+#TopPCs
+importancesTopPCsSALS_1 <- combine_folds_coef_importances_nonrandomfeatures(Disease = "SALS", Analysis = "TopPCs", NrFolds = 5,
+                                      FilePath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/TopPCs/14-8/",
+                                      OutputPath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/TopPCs/14-8/")
+
+rf_importancesTopPCsSALS_1 <- importancesTopPCsSALS_1$combined_import
+glm_importancesTopPCsSALS_1 <- importancesTopPCsSALS_1$combined_coef
+
+
+importancesTopPCsSALS_2 <- combine_folds_coef_importances_nonrandomfeatures(Disease = "SALS", Analysis = "TopPCs", NrFolds = 5,
+                                      FilePath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/TopPCs/15-8/",
+                                      OutputPath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/TopPCs/15-8/")
+
+rf_importancesTopPCsSALS_2 <- importancesTopPCsSALS_2$combined_import
+glm_importancesTopPCsSALS_2 <- importancesTopPCsSALS_2$combined_coef
+
+
+#DEWGCNA
+importancesDEWGCNASALS_1 <- combine_folds_coef_importances_nonrandomfeatures(Disease = "SALS", Analysis = "DEWGCNA", NrFolds = 5,
+                                      FilePath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/DEWGCNA/2-8/",
+                                      OutputPath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/DEWGCNA/2-8/")
+
+rf_importancesDEWGCNASALS_1 <- importancesDEWGCNASALS_1$combined_import
+glm_importancesDEWGCNASALS_1 <- importancesDEWGCNASALS_1$combined_coef
+
+
+importancesDEWGCNASALS_2 <- combine_folds_coef_importances_nonrandomfeatures(Disease = "SALS", Analysis = "DEWGCNA", NrFolds = 5,
+                                      FilePath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/DEWGCNA/4-8/",
+                                      OutputPath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/DEWGCNA/4-8/")
+
+rf_importancesDEWGCNASALS_2 <- importancesDEWGCNASALS_2$combined_import
+glm_importancesDEWGCNASALS_2 <- importancesDEWGCNASALS_2$combined_coef
+```
+
+
+```{r}
+#Import Alzheimer files
+
+#500randomfeatures
+importances500Alzheimers <- combine_folds_coef_importances(Disease = "Alzheimers", Analysis = "500randomfeatures",
+                               FilePath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/500randomfeatures/",
+                               from = 1, to = 36601, by = 500,
+                               OutputPath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/500randomfeatures/")
+
+rf_importances500Alzheimers <- importances500Alzheimers$combined_import
+glm_importances500Alzheimers <- importances500Alzheimers$combined_coef
+
+#1000randomfeatures
+importances1000Alzheimers <- combine_folds_coef_importances(Disease = "Alzheimers", Analysis = "1000randomfeatures",
+                               FilePath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/1000randomfeatures/",
+                               from = 1, to = 36601, by = 1000,
+                               OutputPath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/1000randomfeatures/")
+
+rf_importances1000Alzheimers <- importances1000Alzheimers$combined_import
+glm_importances1000Alzheimers <- importances1000Alzheimers$combined_coef
+
+#2000randomfeatures
+importances2000Alzheimers <- combine_folds_coef_importances(Disease = "Alzheimers", Analysis = "2000randomfeatures",
+                               FilePath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/2000randomfeatures/",
+                               from = 1, to = 36000, by = 2000,
+                               OutputPath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/2000randomfeatures/")
+
+rf_importances2000Alzheimers <- importances2000Alzheimers$combined_import
+glm_importances2000Alzheimers <- importances2000Alzheimers$combined_coef
+
+#3000randomfeatures
+importances3000Alzheimers <- combine_folds_coef_importances(Disease = "Alzheimers", Analysis = "3000randomfeatures",
+                               FilePath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/3000randomfeatures/",
+                               from = 1, to = 36000, by = 3000,
+                               OutputPath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/3000randomfeatures/")
+
+rf_importances3000Alzheimers <- importances3000Alzheimers$combined_import
+glm_importances3000Alzheimers <- importances3000Alzheimers$combined_coef
+
+
+#MostVariableFeatures
+importancesVarFeatsAlzheimers_1 <- combine_folds_coef_importances_nonrandomfeatures(Disease = "Alzheimers", Analysis = "VariableFeatures", NrFolds = 5,
+                                      FilePath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/MostVariableFeatures/7-8/",
+                                      OutputPath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/MostVariableFeatures/7-8/")
+
+rf_importancesVarFeatsAlzheimers_1 <- importancesVarFeatsAlzheimers_1$combined_import
+glm_importancesVarFeatsAlzheimers_1 <- importancesVarFeatsAlzheimers_1$combined_coef
+
+
+importancesVarFeatsAlzheimers_2 <- combine_folds_coef_importances_nonrandomfeatures(Disease = "Alzheimers", Analysis = "VariableFeatures", NrFolds = 5,
+                                      FilePath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/MostVariableFeatures/13-8/",
+                                      OutputPath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/MostVariableFeatures/13-8/")
+
+rf_importancesVarFeatsAlzheimers_2 <- importancesVarFeatsAlzheimers_2$combined_import
+glm_importancesVarFeatsAlzheimers_2 <- importancesVarFeatsAlzheimers_2$combined_coef
+
+
+#TopPCs
+importancesTopPCsAlzheimers_1 <- combine_folds_coef_importances_nonrandomfeatures(Disease = "Alzheimers", Analysis = "TopPCs", NrFolds = 5,
+                                      FilePath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/TopPCs/12-8/",
+                                      OutputPath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/TopPCs/12-8/")
+
+rf_importancesTopPCsAlzheimers_1 <- importancesTopPCsAlzheimers_1$combined_import
+glm_importancesTopPCsAlzheimers_1 <- importancesTopPCsAlzheimers_1$combined_coef
+
+
+importancesTopPCsAlzheimers_2 <- combine_folds_coef_importances_nonrandomfeatures(Disease = "Alzheimers", Analysis = "TopPCs", NrFolds = 5,
+                                      FilePath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/TopPCs/13-8/",
+                                      OutputPath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/TopPCs/13-8/")
+
+rf_importancesTopPCsAlzheimers_2 <- importancesTopPCsAlzheimers_2$combined_import
+glm_importancesTopPCsAlzheimers_2 <- importancesTopPCsAlzheimers_2$combined_coef
+
+
+#DEWGCNA
+importancesDEWGCNAAlzheimers_1 <- combine_folds_coef_importances_nonrandomfeatures(Disease = "Alzheimers", Analysis = "DEWGCNA", NrFolds = 5,
+                                      FilePath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/DEWGCNA/7-8/",
+                                      OutputPath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/DEWGCNA/7-8/")
+
+rf_importancesDEWGCNAAlzheimers_1 <- importancesDEWGCNAAlzheimers_1$combined_import
+glm_importancesDEWGCNAAlzheimers_1 <- importancesDEWGCNAAlzheimers_1$combined_coef
+
+
+importancesDEWGCNAAlzheimers_2 <- combine_folds_coef_importances_nonrandomfeatures(Disease = "Alzheimers", Analysis = "DEWGCNA", NrFolds = 5,
+                                      FilePath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/DEWGCNA/12-8/",
+                                      OutputPath = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/DEWGCNA/12-8/")
+
+rf_importancesDEWGCNAAlzheimers_2 <- importancesDEWGCNAAlzheimers_2$combined_import
+glm_importancesDEWGCNAAlzheimers_2 <- importancesDEWGCNAAlzheimers_2$combined_coef
+```
+
+```{r}
+DEWGCNA_rf_importances <- rbind(rf_importancesDEWGCNAAlzheimers_1, rf_importancesDEWGCNAAlzheimers_2, rf_importancesDEWGCNAC9ALS_1, rf_importancesDEWGCNAC9ALS_2, rf_importancesDEWGCNASALS_1, rf_importancesDEWGCNASALS_2)
+DEWGCNA_glm_importances <- rbind(glm_importancesDEWGCNAAlzheimers_1, glm_importancesDEWGCNAAlzheimers_2, glm_importancesDEWGCNAC9ALS_1, glm_importancesDEWGCNAC9ALS_2, glm_importancesDEWGCNASALS_1, glm_importancesDEWGCNASALS_2)
+DEWGCNA_importances <- rbind(DEWGCNA_rf_importances, DEWGCNA_glm_importances)
+
+MostVariableFeatures_rf_importances <- rbind(rf_importancesVarFeatsAlzheimers_1, rf_importancesVarFeatsAlzheimers_2, rf_importancesVarFeatsC9ALS_1, rf_importancesVarFeatsC9ALS_2, rf_importancesVarFeatsSALS_1, rf_importancesVarFeatsSALS_2)
+MostVariableFeatures_glm_importances <- rbind(glm_importancesVarFeatsAlzheimers_1, glm_importancesVarFeatsAlzheimers_2, glm_importancesVarFeatsC9ALS_1, glm_importancesVarFeatsC9ALS_2, glm_importancesVarFeatsSALS_1, glm_importancesVarFeatsSALS_2)
+MostVariableFeatures_importances <- rbind(MostVariableFeatures_rf_importances, MostVariableFeatures_glm_importances)
+
+TopPCs_rf_importances <- rbind(rf_importancesTopPCsAlzheimers_1, rf_importancesTopPCsAlzheimers_2, rf_importancesTopPCsC9ALS_1, rf_importancesTopPCsC9ALS_2, rf_importancesTopPCsSALS_1, rf_importancesTopPCsSALS_2)
+TopPCs_glm_importances <- rbind(glm_importancesTopPCsAlzheimers_1, glm_importancesTopPCsAlzheimers_2, glm_importancesTopPCsC9ALS_1, glm_importancesTopPCsC9ALS_2, glm_importancesTopPCsSALS_1, glm_importancesTopPCsSALS_2)
+TopPCs_importances <- rbind(TopPCs_rf_importances, TopPCs_glm_importances)
+
+random500features_rf_importances <- rbind(rf_importances500Alzheimers, rf_importances500C9ALS, rf_importances500SALS)
+random500features_glm_importances <- rbind(glm_importances500Alzheimers, glm_importances500C9ALS, glm_importances500SALS)
+random500features_importances <- rbind(random500features_rf_importances, random500features_glm_importances)
+
+random1000features_rf_importances <- rbind(rf_importances1000Alzheimers, rf_importances1000C9ALS, rf_importances1000SALS)
+random1000features_glm_importances <- rbind(glm_importances1000Alzheimers, glm_importances1000C9ALS, glm_importances1000SALS)
+random1000features_importances <- rbind(random1000features_rf_importances, random1000features_glm_importances)
+
+random2000features_rf_importances <- rbind(rf_importances2000Alzheimers, rf_importances2000C9ALS, rf_importances2000SALS)
+random2000features_glm_importances <- rbind(glm_importances2000Alzheimers, glm_importances2000C9ALS, glm_importances2000SALS)
+random2000features_importances <- rbind(random2000features_rf_importances, random2000features_glm_importances)
+
+random3000features_rf_importances <- rbind(rf_importances3000Alzheimers, rf_importances3000C9ALS, rf_importances3000SALS)
+random3000features_glm_importances <- rbind(glm_importances3000Alzheimers, glm_importances3000C9ALS, glm_importances3000SALS)
+random3000features_importances <- rbind(random3000features_rf_importances, random3000features_glm_importances)
+
+randomfeatures_rf_importances <- rbind(random500features_rf_importances, random1000features_rf_importances, random2000features_rf_importances, random3000features_rf_importances)
+randomfeatures_glm_importances <- rbind(random500features_glm_importances, random1000features_glm_importances, random2000features_glm_importances, random3000features_glm_importances)
+randomfeatures_importances <- rbind(random500features_importances, random1000features_importances, random2000features_importances, random3000features_importances)
+```
+
+```{r}
+Alzheimers_rf_importances <- rbind(rf_importancesDEWGCNAAlzheimers_1, rf_importancesDEWGCNAAlzheimers_2, rf_importances500Alzheimers, rf_importances1000Alzheimers, rf_importances2000Alzheimers, rf_importances3000Alzheimers, rf_importancesVarFeatsAlzheimers_1, rf_importancesVarFeatsAlzheimers_2, rf_importancesTopPCsAlzheimers_1, rf_importancesTopPCsAlzheimers_2)
+Alzheimers_glm_importances <- rbind(glm_importancesDEWGCNAAlzheimers_1, glm_importancesDEWGCNAAlzheimers_2, glm_importances500Alzheimers, glm_importances1000Alzheimers, glm_importances2000Alzheimers, glm_importances3000Alzheimers, glm_importancesVarFeatsAlzheimers_1, glm_importancesVarFeatsAlzheimers_2, glm_importancesTopPCsAlzheimers_1, glm_importancesTopPCsAlzheimers_2)
+Alzheimers_importances <- rbind(Alzheimers_rf_importances, Alzheimers_glm_importances)
+
+C9ALS_rf_importances <- rbind(rf_importancesDEWGCNAC9ALS_1, rf_importancesDEWGCNAC9ALS_2, rf_importances500C9ALS, rf_importances1000C9ALS, rf_importances2000C9ALS, rf_importances3000C9ALS, rf_importancesVarFeatsC9ALS_1, rf_importancesVarFeatsC9ALS_2, rf_importancesTopPCsC9ALS_1, rf_importancesTopPCsC9ALS_2)
+C9ALS_glm_importances <- rbind(glm_importancesDEWGCNAC9ALS_1, glm_importancesDEWGCNAC9ALS_2, glm_importances500C9ALS, glm_importances1000C9ALS, glm_importances2000C9ALS, glm_importances3000C9ALS, glm_importancesVarFeatsC9ALS_1, glm_importancesVarFeatsC9ALS_2, glm_importancesTopPCsC9ALS_1, glm_importancesTopPCsC9ALS_2)
+C9ALS_importances <- rbind(C9ALS_rf_importances, C9ALS_glm_importances)
+
+SALS_rf_importances <- rbind(rf_importancesDEWGCNASALS_1, rf_importancesDEWGCNASALS_2, rf_importances500SALS, rf_importances1000SALS, rf_importances2000SALS, rf_importances3000SALS, rf_importancesVarFeatsSALS_1, rf_importancesVarFeatsSALS_2, rf_importancesTopPCsSALS_1, rf_importancesTopPCsSALS_2)
+SALS_glm_importances <- rbind(glm_importancesDEWGCNASALS_1, glm_importancesDEWGCNASALS_2, glm_importances500SALS, glm_importances1000SALS, glm_importances2000SALS, glm_importances3000SALS, glm_importancesVarFeatsSALS_1, glm_importancesVarFeatsSALS_2, glm_importancesTopPCsSALS_1, glm_importancesTopPCsSALS_2)
+SALS_importances <- rbind(SALS_rf_importances, SALS_glm_importances)
+```
+
+```{r}
+All_rf_importances <- rbind(Alzheimers_rf_importances, C9ALS_rf_importances, SALS_rf_importances)
+All_glm_importances <- rbind(Alzheimers_glm_importances, C9ALS_glm_importances, SALS_glm_importances)
+All_importances <- rbind(All_rf_importances, All_glm_importances)
+```
+
+
+```{r}
+folder_path <- "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ResultFiles/Importances/"
+
+# Save RDS files for rf_importances
+saveRDS(DEWGCNA_rf_importances, file = paste0(folder_path, "DEWGCNA_rf_importances.rds"))
+saveRDS(MostVariableFeatures_rf_importances, file = paste0(folder_path, "MostVariableFeatures_rf_importances.rds"))
+saveRDS(TopPCs_rf_importances, file = paste0(folder_path, "TopPCs_rf_importances.rds"))
+saveRDS(random500features_rf_importances, file = paste0(folder_path, "500randomfeatures_rf_importances.rds"))
+saveRDS(random1000features_rf_importances, file = paste0(folder_path, "1000randomfeatures_rf_importances.rds"))
+saveRDS(random2000features_rf_importances, file = paste0(folder_path, "2000randomfeatures_rf_importances.rds"))
+saveRDS(random3000features_rf_importances, file = paste0(folder_path, "3000randomfeatures_rf_importances.rds"))
+saveRDS(randomfeatures_rf_importances, file = paste0(folder_path, "randomfeatures_rf_importances.rds"))
+saveRDS(Alzheimers_rf_importances, file = paste0(folder_path, "Alzheimers_rf_importances.rds"))
+saveRDS(C9ALS_rf_importances, file = paste0(folder_path, "C9ALS_rf_importances.rds"))
+saveRDS(SALS_rf_importances, file = paste0(folder_path, "SALS_rf_importances.rds"))
+saveRDS(All_rf_importances, file = paste0(folder_path, "All_rf_importances.rds"))
+
+# Save RDS files for glm_importances
+saveRDS(DEWGCNA_glm_importances, file = paste0(folder_path, "DEWGCNA_glm_importances.rds"))
+saveRDS(MostVariableFeatures_glm_importances, file = paste0(folder_path, "MostVariableFeatures_glm_importances.rds"))
+saveRDS(TopPCs_glm_importances, file = paste0(folder_path, "TopPCs_glm_importances.rds"))
+saveRDS(random500features_glm_importances, file = paste0(folder_path, "500randomfeatures_glm_importances.rds"))
+saveRDS(random1000features_glm_importances, file = paste0(folder_path, "1000randomfeatures_glm_importances.rds"))
+saveRDS(random2000features_glm_importances, file = paste0(folder_path, "2000randomfeatures_glm_importances.rds"))
+saveRDS(random3000features_glm_importances, file = paste0(folder_path, "3000randomfeatures_glm_importances.rds"))
+saveRDS(randomfeatures_glm_importances, file = paste0(folder_path, "randomfeatures_glm_importances.rds"))
+saveRDS(Alzheimers_glm_importances, file = paste0(folder_path, "Alzheimers_glm_importances.rds"))
+saveRDS(C9ALS_glm_importances, file = paste0(folder_path, "C9ALS_glm_importances.rds"))
+saveRDS(SALS_glm_importances, file = paste0(folder_path, "SALS_glm_importances.rds"))
+saveRDS(All_glm_importances, file = paste0(folder_path, "All_glm_importances.rds"))
+
+# Save RDS files for combined _importances
+saveRDS(DEWGCNA_importances, file = paste0(folder_path, "DEWGCNA_importances.rds"))
+saveRDS(MostVariableFeatures_importances, file = paste0(folder_path, "MostVariableFeatures_importances.rds"))
+saveRDS(TopPCs_importances, file = paste0(folder_path, "TopPCs_importances.rds"))
+saveRDS(random500features_importances, file = paste0(folder_path, "500randomfeatures_importances.rds"))
+saveRDS(random1000features_importances, file = paste0(folder_path, "1000randomfeatures_importances.rds"))
+saveRDS(random2000features_importances, file = paste0(folder_path, "2000randomfeatures_importances.rds"))
+saveRDS(random3000features_importances, file = paste0(folder_path, "3000randomfeatures_importances.rds"))
+saveRDS(randomfeatures_importances, file = paste0(folder_path, "randomfeatures_importances.rds"))
+saveRDS(Alzheimers_importances, file = paste0(folder_path, "Alzheimers_importances.rds"))
+saveRDS(C9ALS_importances, file = paste0(folder_path, "C9ALS_importances.rds"))
+saveRDS(SALS_importances, file = paste0(folder_path, "SALS_importances.rds"))
+saveRDS(All_importances, file = paste0(folder_path, "All_importances.rds"))
+
+# Save CSV files for rf_importances
+write.csv(DEWGCNA_rf_importances, file = paste0(folder_path, "DEWGCNA_rf_importances.csv"), row.names = FALSE)
+write.csv(MostVariableFeatures_rf_importances, file = paste0(folder_path, "MostVariableFeatures_rf_importances.csv"), row.names = FALSE)
+write.csv(TopPCs_rf_importances, file = paste0(folder_path, "TopPCs_rf_importances.csv"), row.names = FALSE)
+write.csv(random500features_rf_importances, file = paste0(folder_path, "500randomfeatures_rf_importances.csv"), row.names = FALSE)
+write.csv(random1000features_rf_importances, file = paste0(folder_path, "1000randomfeatures_rf_importances.csv"), row.names = FALSE)
+write.csv(random2000features_rf_importances, file = paste0(folder_path, "2000randomfeatures_rf_importances.csv"), row.names = FALSE)
+write.csv(random3000features_rf_importances, file = paste0(folder_path, "3000randomfeatures_rf_importances.csv"), row.names = FALSE)
+write.csv(randomfeatures_rf_importances, file = paste0(folder_path, "randomfeatures_rf_importances.csv"), row.names = FALSE)
+write.csv(Alzheimers_rf_importances, file = paste0(folder_path, "Alzheimers_rf_importances.csv"), row.names = FALSE)
+write.csv(C9ALS_rf_importances, file = paste0(folder_path, "C9ALS_rf_importances.csv"), row.names = FALSE)
+write.csv(SALS_rf_importances, file = paste0(folder_path, "SALS_rf_importances.csv"), row.names = FALSE)
+write.csv(All_rf_importances, file = paste0(folder_path, "All_rf_importances.csv"), row.names = FALSE)
+
+# Save CSV files for glm_importances
+write.csv(DEWGCNA_glm_importances, file = paste0(folder_path, "DEWGCNA_glm_importances.csv"), row.names = FALSE)
+write.csv(MostVariableFeatures_glm_importances, file = paste0(folder_path, "MostVariableFeatures_glm_importances.csv"), row.names = FALSE)
+write.csv(TopPCs_glm_importances, file = paste0(folder_path, "TopPCs_glm_importances.csv"), row.names = FALSE)
+write.csv(random500features_glm_importances, file = paste0(folder_path, "500randomfeatures_glm_importances.csv"), row.names = FALSE)
+write.csv(random1000features_glm_importances, file = paste0(folder_path, "1000randomfeatures_glm_importances.csv"), row.names = FALSE)
+write.csv(random2000features_glm_importances, file = paste0(folder_path, "2000randomfeatures_glm_importances.csv"), row.names = FALSE)
+write.csv(random3000features_glm_importances, file = paste0(folder_path, "3000randomfeatures_glm_importances.csv"), row.names = FALSE)
+write.csv(randomfeatures_glm_importances, file = paste0(folder_path, "randomfeatures_glm_importances.csv"), row.names = FALSE)
+write.csv(Alzheimers_glm_importances, file = paste0(folder_path, "Alzheimers_glm_importances.csv"), row.names = FALSE)
+write.csv(C9ALS_glm_importances, file = paste0(folder_path, "C9ALS_glm_importances.csv"), row.names = FALSE)
+write.csv(SALS_glm_importances, file = paste0(folder_path, "SALS_glm_importances.csv"), row.names = FALSE)
+write.csv(All_glm_importances, file = paste0(folder_path, "All_glm_importances.csv"), row.names = FALSE)
+
+# Save CSV files for combined _importances
+write.csv(DEWGCNA_importances, file = paste0(folder_path, "DEWGCNA_importances.csv"), row.names = FALSE)
+write.csv(MostVariableFeatures_importances, file = paste0(folder_path, "MostVariableFeatures_importances.csv"), row.names = FALSE)
+write.csv(TopPCs_importances, file = paste0(folder_path, "TopPCs_importances.csv"), row.names = FALSE)
+write.csv(random500features_importances, file = paste0(folder_path, "500randomfeatures_importances.csv"), row.names = FALSE)
+write.csv(random1000features_importances, file = paste0(folder_path, "1000randomfeatures_importances.csv"), row.names = FALSE)
+write.csv(random2000features_importances, file = paste0(folder_path, "2000randomfeatures_importances.csv"), row.names = FALSE)
+write.csv(random3000features_importances, file = paste0(folder_path, "3000randomfeatures_importances.csv"), row.names = FALSE)
+write.csv(randomfeatures_importances, file = paste0(folder_path, "randomfeatures_importances.csv"), row.names = FALSE)
+write.csv(Alzheimers_importances, file = paste0(folder_path, "Alzheimers_importances.csv"), row.names = FALSE)
+write.csv(C9ALS_importances, file = paste0(folder_path, "C9ALS_importances.csv"), row.names = FALSE)
+write.csv(SALS_importances, file = paste0(folder_path, "SALS_importances.csv"), row.names = FALSE)
+write.csv(All_importances, file = paste0(folder_path, "All_importances.csv"), row.names = FALSE)
+
+```
+
+
+
+```{r}
+library(biomaRt)
+all_importances <- read_csv("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ResultFiles/Importances/All_importances.csv")
+
+
+# Use the Ensembl BioMart database
+ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+
+# Retrieve mapping from Ensembl to Entrez IDs
+ensembl_to_symbol <- getBM(
+  attributes = c("ensembl_gene_id", "hgnc_symbol"),
+  mart = ensembl
+)
+
+ensembl_to_symbol <- ensembl_to_symbol %>%
+  dplyr::rename(EnsemblID = ensembl_gene_id, GeneSymbol = hgnc_symbol) %>%
+  distinct(EnsemblID, GeneSymbol)
+
+
+reduced_ensembl_to_symbol <- ensembl_to_symbol %>%
+  filter(GeneSymbol != "" & !is.na(GeneSymbol)) %>%
+  group_by(GeneSymbol) %>%
+  dplyr::slice(1) %>%  # Keep only the first occurrence of each GeneSymbol
+  ungroup()
+
+all_importances <- all_importances %>%
+  mutate(
+    EnsemblID = ifelse(Disease == "Alzheimers", gene, NA_character_),  # EnsemblID for Alzheimers
+    GeneSymbol = ifelse(Disease %in% c("C9ALS", "SALS"), gene, NA_character_)  # GeneSymbol for C9ALS and SALS
+  ) %>%
+  # First join to fill GeneSymbol where EnsemblID exists
+  left_join(ensembl_to_symbol, by = c("EnsemblID" = "EnsemblID")) %>%
+  mutate(
+    GeneSymbol = ifelse(is.na(GeneSymbol.x), GeneSymbol.y, GeneSymbol.x)) %>%  # Fill missing GeneSymbols  
+  dplyr::select(-GeneSymbol.x,-GeneSymbol.y) %>%
+  # Second join to fill EnsemblID where GeneSymbol exists
+  left_join(reduced_ensembl_to_symbol, by = "GeneSymbol") %>%
+  mutate(
+    EnsemblID = ifelse(is.na(EnsemblID.x), EnsemblID.y, EnsemblID.x)  # Fill missing EnsemblIDs
+  ) %>%
+  dplyr::select(-c(EnsemblID.x, EnsemblID.y))
+```
+
+```{r}
+table(all_importances$GeneSymbol %in% c("",NA))
+table(all_importances$EnsemblID %in% c("",NA))
+```
+
+```{r}
+library(org.Hs.eg.db)
+
+# Retrieve mappings between Ensembl IDs, Gene Symbols, and Entrez IDs
+additional_mapping <- AnnotationDbi::select(org.Hs.eg.db, 
+                             keys = keys(org.Hs.eg.db, keytype = "ENSEMBL"), 
+                             columns = c("ENSEMBL", "SYMBOL", "GENENAME"), 
+                             keytype = "ENSEMBL")
+
+additional_mapping <- additional_mapping %>%
+  distinct(ENSEMBL, SYMBOL) %>%
+  filter(!is.na(SYMBOL))
+
+# Rename the columns for easier joining
+additional_mapping <- additional_mapping %>%
+  dplyr::rename(EnsemblID = ENSEMBL, GeneSymbol = SYMBOL)
+
+additional_mapping <- additional_mapping %>%
+  filter(GeneSymbol != "" & !is.na(GeneSymbol)) %>%
+  distinct(GeneSymbol, .keep_all = TRUE)
+
+uniqueEnsID_mapping <- additional_mapping %>%
+  group_by(EnsemblID) %>%
+  slice(1) %>%  # Select the first occurrence for each EnsemblID
+  ungroup()
+
+
+merged_df <- all_importances %>%
+  left_join(uniqueEnsID_mapping, by = "EnsemblID", suffix = c("", ".map"))
+
+all_importances$GeneSymbol <- ifelse(is.na(all_importances$GeneSymbol) | all_importances$GeneSymbol == "", 
+                                     merged_df$GeneSymbol.map, 
+                                     all_importances$GeneSymbol)
+
+
+
+
+merged_df <- all_importances %>%
+  left_join(additional_mapping, by = "GeneSymbol", suffix = c("", ".map"))
+
+all_importances$EnsemblID <- ifelse(is.na(all_importances$EnsemblID) | all_importances$EnsemblID == "", 
+                                    merged_df$EnsemblID.map, 
+                                    all_importances$EnsemblID)
+```
+
+```{r}
+combination_df <- data.frame(
+  Disease = character(),
+  Analysis = character(),
+  Fold = character(),
+  Classifier = character(),
+  first_row = integer(),
+  stringsAsFactors = FALSE
+)
+
+# Initialize variables to track the previous combination
+prev_disease <- NA
+prev_analysis <- NA
+prev_fold <- NA
+prev_classifier <- NA
+
+# Iterate through each row to find the first occurrence of each unique combination
+for (i in seq_len(nrow(all_importances))) {
+  current_disease <- all_importances$Disease[i]
+  current_analysis <- all_importances$Analysis[i]
+  current_fold <- all_importances$Fold[i]
+  current_classifier <- all_importances$Classifier[i]
+  
+  # Check if the current combination is different from the previous one
+  if (is.na(prev_disease) || current_disease != prev_disease || current_analysis != prev_analysis || current_fold != prev_fold || current_classifier != prev_classifier) {
+    # If different, add the combination and the current row number to the dataframe
+    combination_df <- rbind(combination_df, data.frame(
+      Disease = current_disease,
+      Analysis = current_analysis,
+      Fold = current_fold,
+      Classifier = current_classifier,
+      first_row = i
+    ))
+    
+    # Update the previous combination to the current one
+    prev_disease <- current_disease
+    prev_analysis <- current_analysis
+    prev_fold <- current_fold
+    prev_classifier <- current_classifier
+  }
+}
+```
+
+```{r}
+all_importances$Run <- NA
+
+# Initialize a dataframe to keep track of seen combinations
+seen_combinations <- data.frame(
+  Disease = character(),
+  Analysis = character(),
+  Fold = character(),
+  Classifier = character(),
+  stringsAsFactors = FALSE
+)
+
+# Iterate through combination_df row by row
+for (i in seq_len(nrow(combination_df))) {
+  # Get the current combination
+  current_combination <- combination_df[i, c("Disease", "Analysis", "Fold", "Classifier")]
+  
+  # Check if this combination has been seen before
+  seen_before <- any(
+    seen_combinations$Disease == current_combination$Disease &
+    seen_combinations$Analysis == current_combination$Analysis &
+    seen_combinations$Fold == current_combination$Fold &
+    seen_combinations$Classifier == current_combination$Classifier
+  )
+  
+  # Determine Run number based on whether the combination has been seen before
+  run_number <- ifelse(seen_before, 2, 1)
+  
+  # Determine the start row for the current combination
+  start_row <- combination_df$first_row[i]
+  
+  # Determine the end row (start of next combination or end of dataframe)
+  if (i < nrow(combination_df)) {
+    end_row <- combination_df$first_row[i + 1] - 1
+  } else {
+    end_row <- nrow(all_importances)
+  }
+  
+  # Assign the Run number to the corresponding rows in all_importances
+  all_importances$Run[start_row:end_row] <- run_number
+  
+# Add this combination to seen_combinations if it's new
+  if (!seen_before) {
+    seen_combinations <- rbind(seen_combinations, current_combination)
+  }
+}
+```
+
+
+
+```{r}
+grouped_df <- all_importances %>%
+  group_by(Disease, Analysis, Fold, Classifier, Run) %>%
+  summarise(total_absimportance = sum(absimportance, na.rm = TRUE), .groups = 'drop')
+
+all_importances <- all_importances %>%
+  left_join(grouped_df, by = c("Disease", "Analysis", "Fold", "Classifier", "Run")) %>%
+  mutate(relative_absimportance = absimportance/total_absimportance)
+```
+
+
+```{r}
+reduced_importances <- all_importances %>%
+  group_by(Disease, Analysis, Fold, Classifier, Run) %>%
+  arrange(desc(absimportance)) %>%  # Arrange in descending order of absimportance
+  slice_head(n = 50) %>%  # Take the top 50 genes per group
+  ungroup()  # Ungroup the data frame
+```
+
+```{r}
+folder_path <- "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ResultFiles/Importances/"
+write.csv(all_importances, file = paste0(folder_path, "All_importances.csv"), row.names = FALSE)
+write.csv(reduced_importances, file = paste0(folder_path, "Reduced_importances.csv"), row.names = FALSE)
+```
+

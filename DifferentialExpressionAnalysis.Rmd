@@ -1,0 +1,400 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(DESeq2)
+library(tibble)
+library(magrittr)
+library(dplyr)
+```
+
+```{r}
+Alzheimers <- readRDS("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersProofConcept/Data/SeuratObject.rds")
+
+Alzheimers@assays$ATAC <- NULL
+
+Alzheimersmetadata <- Alzheimers@meta.data %>% 
+  tibble::rownames_to_column("cellbarcode") %>%
+  dplyr::select(cellbarcode, id, subs, predicted.id, Status) 
+```
+
+```{r}
+C9ALS <- readRDS("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/Data/C9ALS_Seurat_Downsampled.rds")
+```
+
+```{r}
+SALS <- readRDS("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/Data/SALS_Seurat_Downsampled.rds")
+```
+
+
+```{r}
+counts <- GetAssayData(SALS, assay = "RNA", layer = "counts")
+```
+
+```{r}
+# Extract metadata
+metadata <- SALS@meta.data
+
+# Ensure 'id' and 'Status' are factors
+metadata$id <- as.factor(metadata$id)
+metadata$Status <- factor(metadata$Status, levels = c("PN", "ALS"))
+```
+
+```{r}
+samples <- levels(metadata$id)
+
+# Initialize a list to store pseudobulk counts
+pseudobulk_counts_list <- list()
+
+# Loop through each sample
+for (sample in samples) {
+  # Cells belonging to the sample
+  cells_in_sample <- rownames(metadata[metadata$id == sample, ])
+  
+  # Sum counts across cells
+  pseudobulk_counts_list[[sample]] <- Matrix::rowSums(counts[, cells_in_sample, drop = FALSE])
+}
+
+# Combine pseudobulk counts into a matrix
+pseudobulk_counts <- do.call(cbind, pseudobulk_counts_list)
+
+# Set column names to sample IDs
+colnames(pseudobulk_counts) <- samples
+
+# Check dimensions
+dim(pseudobulk_counts)
+```
+
+```{r}
+sample_metadata <- metadata %>%
+  dplyr::select(id, Status) %>%
+  distinct() %>%
+  filter(id %in% samples) %>%
+  arrange(match(id, samples))  # Ensure the order matches pseudobulk_counts columns
+
+# Convert to data frame and set row names
+sample_metadata <- as.data.frame(sample_metadata)
+rownames(sample_metadata) <- sample_metadata$id
+
+# Check that rownames match column names of pseudobulk_counts
+all(rownames(sample_metadata) == colnames(pseudobulk_counts))
+```
+
+```{r}
+dds <- DESeqDataSetFromMatrix(
+  countData = pseudobulk_counts,
+  colData = sample_metadata,
+  design = ~ Status
+)
+
+dds <- DESeq(dds)
+
+# Extract results
+res <- results(dds, contrast = c("Status", "ALS", "PN"))
+
+res <- lfcShrink(dds, coef = resultsNames(dds)[2], res = res, type = "apeglm")
+
+res_tbl <- res %>%
+    data.frame() %>%
+    rownames_to_column(var = "gene") %>%
+    as_tibble() %>%
+    arrange(padj) %>%
+    filter(padj < 0.5) %>%
+    filter(abs(log2FoldChange) > log2(1.5))
+
+saveRDS(res_tbl, "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/DifferentialExpressionAnalysis/SALSDE_allcelltypes.rds")
+```
+
+
+```{r}
+#PerCelltype
+
+metadata$cell_type <- metadata$predicted.id  
+
+# Create a combined identifier for sample and cell type
+metadata$sample_celltype <- paste(metadata$id, metadata$cell_type, sep = "_")
+
+# Get unique combinations
+sample_celltypes <- unique(metadata$sample_celltype)
+
+# Initialize list for pseudobulk counts
+pseudobulk_counts_list_ct <- list()
+
+# Loop through each sample-cell type combination
+for (sample_celltype in sample_celltypes) {
+  # Cells in the current group
+  cells_in_group <- rownames(metadata[metadata$sample_celltype == sample_celltype, ])
+  
+  # Skip if fewer than 10 cells
+  if (length(cells_in_group) >= 10) {
+    # Sum counts
+    pseudobulk_counts_list_ct[[sample_celltype]] <- Matrix::rowSums(counts[, cells_in_group, drop = FALSE])
+  }
+}
+
+# Combine counts into a matrix
+pseudobulk_counts_ct <- do.call(cbind, pseudobulk_counts_list_ct)
+
+# Set column names
+colnames(pseudobulk_counts_ct) <- names(pseudobulk_counts_list_ct)
+
+# Check dimensions
+dim(pseudobulk_counts_ct)
+```
+
+```{r}
+# Extract sample and cell type information
+sample_celltype_metadata <- data.frame(
+  sample_celltype = colnames(pseudobulk_counts_ct)
+) %>%
+  separate(sample_celltype, into = c("id", "cell_type"), sep = "_", remove = FALSE)
+
+# Add condition (Status) information
+sample_celltype_metadata <- sample_celltype_metadata %>%
+  left_join(
+    metadata %>% dplyr::select(id, Status) %>% distinct(),
+    by = "id"
+  )
+
+# Set row names
+rownames(sample_celltype_metadata) <- sample_celltype_metadata$sample_celltype
+
+# Check
+head(sample_celltype_metadata)
+```
+
+```{r}
+# Get list of cell types
+cell_types <- unique(sample_celltype_metadata$cell_type)
+
+# Initialize a list to store results
+celltype_DE_results <- list()
+
+for (current_cell_type in cell_types) {
+  message(paste("Processing cell type:", current_cell_type))
+  
+  # Subset samples for the current cell type
+  celltype_samples <- sample_celltype_metadata %>%
+    filter(cell_type == current_cell_type)
+  
+  # Ensure there are samples in both conditions
+  if (length(unique(celltype_samples$Status)) < 2) {
+    message(paste("Skipping cell type", current_cell_type, "- not enough samples in each condition"))
+    next
+  }
+  
+  # Subset counts
+  celltype_counts <- pseudobulk_counts_ct[, celltype_samples$sample_celltype, drop = FALSE]
+  
+  if (!all(colnames(celltype_counts) == celltype_samples$sample_celltype)) {
+    stop("Counts and metadata are not aligned!")
+  }
+  
+  # Create DESeq2 dataset
+  dds_ct <- DESeqDataSetFromMatrix(
+    countData = celltype_counts,
+    colData = celltype_samples,
+    design = ~ Status
+  )
+  
+  # Filter low-count genes
+  keep <- rowSums(counts(dds_ct)) >= 10
+  dds_ct <- dds_ct[keep, ]
+  
+  # Run DESeq2
+  dds_ct <- DESeq(dds_ct)
+  
+  # Get results
+  res_ct <- results(dds_ct, contrast = c("Status", "ALS", "PN"))
+  
+  res_ct <- lfcShrink(dds_ct, coef = resultsNames(dds_ct)[2], res = res_ct, type = "apeglm")
+  
+  res_ct_tbl <- res_ct %>%
+    data.frame() %>%
+    rownames_to_column(var = "gene") %>%
+    as_tibble() %>%
+    arrange(padj) %>%
+    filter(padj < 0.05) %>%
+    filter(abs(log2FoldChange) > log2(1.5))
+  
+  # Store results
+  celltype_DE_results[[current_cell_type]] <- res_ct_tbl 
+}
+
+saveRDS(celltype_DE_results, "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/DifferentialExpressionAnalysis/SALSDE_percelltype.rds")
+```
+
+
+
+
+#Visualising results
+
+```{r}
+AlzheimersDEgenes <- readRDS("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/DifferentialExpressionAnalysis/AlzheimersDE_allcelltypes.rds")
+C9ALSDEgenes <- readRDS("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/DifferentialExpressionAnalysis/C9ALSDE_allcelltypes.rds")
+SALSDEgenes <- readRDS("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/DifferentialExpressionAnalysis/SALSDE_allcelltypes.rds")
+
+mapping <- all_importances %>%
+  filter(Disease == "Alzheimers") %>%
+  dplyr::select(GeneSymbol, EnsemblID) %>%
+  unique()
+
+AlzheimersDEgenes <- AlzheimersDEgenes %>%
+  left_join(mapping, by = c("gene" = "EnsemblID"))
+
+C9ALSDEgenes$GeneSymbol <- C9ALSDEgenes$gene
+SALSDEgenes$GeneSymbol <- SALSDEgenes$gene
+```
+
+```{r}
+# Function to get top 100 upregulated and downregulated genes
+get_top_up_down_genes <- function(df) {
+  
+  # Step 1: Add two columns - absolute fold change and regulation status
+  df <- df %>%
+    mutate(
+      abs_log2FoldChange = abs(log2FoldChange),  # Absolute fold change
+      Regulation = ifelse(log2FoldChange > 0, "Upregulated", "Downregulated")  # Up or down regulation
+    )
+  
+  # Step 2: Filter and sort for top 100 upregulated genes
+  top_100_upregulated <- df %>%
+    filter(Regulation == "Upregulated") %>%
+    arrange(desc(abs_log2FoldChange)) %>%
+    dplyr::select(GeneSymbol, log2FoldChange, Regulation) %>%
+    head(100)
+  
+  # Step 3: Filter and sort for top 100 downregulated genes
+  top_100_downregulated <- df %>%
+    filter(Regulation == "Downregulated") %>%
+    arrange(desc(abs_log2FoldChange)) %>%
+    dplyr::select(GeneSymbol, log2FoldChange, Regulation) %>%
+    head(100)
+  
+  # Step 4: Combine both into a single dataframe for further analysis
+  top_100_genes_combined <- bind_rows(top_100_upregulated, top_100_downregulated)
+  
+  # Return the combined dataframe
+  return(top_100_genes_combined)
+}
+
+AlzheimersDEgenes100 <- get_top_up_down_genes(AlzheimersDEgenes)
+C9ALSDEgenes100 <- get_top_up_down_genes(C9ALSDEgenes)
+SALSDEgenes100 <- get_top_up_down_genes(SALSDEgenes)
+```
+
+
+
+```{r}
+library(ggplot2)
+library(gridExtra)
+```
+
+```{r}
+# Function to create a volcano plot with consistent colors
+create_volcano <- function(de_data, intersect_genes, title) {
+  
+  # Modify the 'Significant' column to include "Significant Up" and "Significant Down"
+  de_data <- de_data %>%
+    mutate(Significant = case_when(
+      padj < 0.05 & log2FoldChange > 1 ~ "Significant Up",
+      padj < 0.05 & log2FoldChange < -1 ~ "Significant Down",
+      TRUE ~ "Not Significant"
+    ),
+    Intersect = ifelse(GeneSymbol %in% intersect_genes, "Intersect", "Not Intersect"))
+  
+  # Create the volcano plot
+  ggplot(de_data, aes(x = log2FoldChange, y = -log10(padj), color = Significant, label = GeneSymbol)) +
+    geom_point(alpha = 0.6, size = 2) +
+    geom_text_repel(data = subset(de_data, Intersect == "Intersect"),
+                    aes(label = GeneSymbol), size = 4, max.overlaps = 20) +
+    scale_color_manual(values = c("grey", "steelblue", "firebrick")) +  # Color mapping for the three categories
+    labs(title = title, x = "Log2 Fold Change", y = "-Log10 Adjusted P-Value") +
+    theme_minimal() +
+    theme(legend.position = "none",
+          plot.title = element_text(hjust = 0.5, face = "bold", size = 20),
+          axis.title = element_text(size = 18, face = "bold"),
+          axis.text = element_text(size = 16, face = "bold"))
+}
+
+# Function to create a bar plot of top DE genes
+create_barplot <- function(de_data, intersect_genes, title, top_n = 10) {
+  top_up <- de_data %>%
+    filter(!is.na(GeneSymbol)) %>%
+    filter(log2FoldChange > 0) %>%
+    arrange(-log2FoldChange) %>%
+    head(top_n)
+
+  top_down <- de_data %>%
+    filter(!is.na(GeneSymbol)) %>%
+    filter(log2FoldChange < 0) %>%
+    arrange(log2FoldChange) %>%
+    head(top_n)
+
+  top_genes <- bind_rows(top_up, top_down)
+  
+  top_genes <- top_genes %>%
+    mutate(IsIntersect = ifelse(GeneSymbol %in% intersect_genes, TRUE, FALSE))
+  
+  top_genes$GeneSymbol <- factor(top_genes$GeneSymbol, levels = top_genes$GeneSymbol[order(top_genes$log2FoldChange)])
+
+  ggplot(top_genes, aes(x = GeneSymbol, y = log2FoldChange, fill = log2FoldChange > 0)) +
+    geom_bar(stat = "identity") +
+    coord_flip() +
+    scale_fill_manual(values = c("steelblue", "firebrick")) +
+    labs(title = title, x = "Gene", y = "Log2 Fold Change") +
+    theme_minimal(base_size = 18) +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 20, face = "bold"),
+      axis.title = element_text(size = 18, face = "bold"),
+      axis.text.y = element_text(size = 16, face = "bold",
+                                 color = ifelse(levels(top_genes$GeneSymbol) %in% intersect_genes, "red", "black")),
+      axis.text.x = element_text(size = 16),
+      legend.position = "none"
+    )
+}
+
+```
+
+```{r}
+# Create and capture each volcano plot
+alz_volcano <- create_volcano(AlzheimersDEgenes, intersect(genes_alz, AlzheimersDEgenes$GeneSymbol), "Alzheimer's Disease DE Genes")
+c9als_volcano <- create_volcano(C9ALSDEgenes, intersect(genes_c9als, C9ALSDEgenes$gene), "C9ALS DE Genes")
+sals_volcano <- create_volcano(SALSDEgenes, intersect(genes_sals, SALSDEgenes$gene), "SALS DE Genes")
+
+# Create the bar plots
+alz_barplot <- create_barplot(AlzheimersDEgenes, intersect(genes_alz, AlzheimersDEgenes$GeneSymbol), "Alzheimer's Disease Top DE Genes")
+c9als_barplot <- create_barplot(C9ALSDEgenes, intersect(genes_c9als, C9ALSDEgenes$gene), "C9ALS Top DE Genes")
+sals_barplot <- create_barplot(SALSDEgenes, intersect(genes_sals, SALSDEgenes$gene), "SALS Top DE Genes")
+
+# Combine the volcano and bar plots into a grid, and add grid labels (A-F)
+plot <- grid.arrange(
+  grobs = list(
+    arrangeGrob(alz_volcano, top = textGrob("A", x = unit(0, "npc"), y = unit(1, "npc"), just = c("left", "top"), gp = gpar(fontsize = 20, fontface = "bold"))),
+    arrangeGrob(alz_barplot, top = textGrob("B", x = unit(0, "npc"), y = unit(1, "npc"), just = c("left", "top"), gp = gpar(fontsize = 20, fontface = "bold"))),
+    arrangeGrob(c9als_volcano, top = textGrob("C", x = unit(0, "npc"), y = unit(1, "npc"), just = c("left", "top"), gp = gpar(fontsize = 20, fontface = "bold"))),
+    arrangeGrob(c9als_barplot, top = textGrob("D", x = unit(0, "npc"), y = unit(1, "npc"), just = c("left", "top"), gp = gpar(fontsize = 20, fontface = "bold"))),
+    arrangeGrob(sals_volcano, top = textGrob("E", x = unit(0, "npc"), y = unit(1, "npc"), just = c("left", "top"), gp = gpar(fontsize = 20, fontface = "bold"))),
+    arrangeGrob(sals_barplot, top = textGrob("F", x = unit(0, "npc"), y = unit(1, "npc"), just = c("left", "top"), gp = gpar(fontsize = 20, fontface = "bold")))
+  ),
+  nrow = 3, ncol = 2
+)
+
+# Display the combined plot
+print(plot)
+```
+
+```{r}
+ggsave(
+  filename = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/DEcombined_volcano_barplot.png", 
+  plot = plot,   # The combined plot from grid.arrange()
+  width = 14,    # Adjust width as needed
+  height = 18,   # Adjust height as needed
+  dpi = 600      # High-quality resolution
+)
+```
+
+
+

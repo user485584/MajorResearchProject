@@ -1,0 +1,296 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(Seurat)
+library(gridExtra)
+```
+
+
+
+```{r}
+#Alzheimers <- readRDS("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersProofConcept/Data/SeuratObject.rds")
+Alzheimers <- readRDS("/hpc/hers_en/rballieux/AlzheimersProofConcept/RObjects/SeuratObject.rds")
+Alzheimers[["ATAC"]] <- NULL 
+
+Alzheimers_meta <- Alzheimers@meta.data
+```
+
+```{r}
+#C9ALS <- readRDS("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/Data/C9ALS_Seurat_Downsampled.rds")
+#SALS <- readRDS("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/Data/SALS_Seurat_Downsampled.rds")
+
+C9ALS <- readRDS("/hpc/hers_en/rballieux/ALS_FTLD/Data/C9ALS_Seurat_Downsampled.rds")
+SALS <- readRDS("/hpc/hers_en/rballieux/ALS_FTLD/Data/SALS_Seurat_Downsampled.rds")
+
+C9ALS_meta <- C9ALS@meta.data
+SALS_meta <- SALS@meta.data
+```
+
+```{r}
+table(Alzheimers_meta$Status)
+table(C9ALS_meta$Status)
+table(SALS_meta$Status)
+```
+
+```{r}
+table(Alzheimers_meta$predicted.id)
+table(C9ALS_meta$predicted.id)
+table(SALS_meta$predicted.id)
+```
+
+```{r}
+color_palette_celltypes <- c(
+  "Astrocytes" = "#8A2BE2", "Endothelial" = "#5B2C6F", "Excitatory" = "#2980B9",
+  "Inhibitory" = "#2E86C1", "Microglia" = "#1E8449", "Oligodendrocytes" = "#A93226",
+  "OPCs" = "#884EA0", "Pericytes" = "#2ECC71", "Vasc" = "#CB4335"
+)
+
+color_palette_status <- c(
+  "Ctrl" = "#4682b4", "SALS" = "#b22222", "C9ALS" = "#a52a2a", "AD" = "#8b0000"
+)
+```
+
+
+```{r}
+# Create the main plots without legends
+status_plot_main <- ggplot(status_data, aes(x = Dataset, y = n, fill = Status)) +
+  geom_bar(stat = "identity", position = "fill") +
+  geom_text(aes(label = n), position = position_fill(vjust = 0.5), size = 4, color = "white") +
+  scale_y_continuous(labels = scales::percent) +
+  labs(title = "Proportion of Status Across Datasets", y = "Proportion", x = "") +
+  scale_fill_manual(values = color_palette_status) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14),
+    legend.position = "none",  # Remove legend from main plot
+    plot.margin = unit(c(1, 1, 0, 1), "lines"),
+    axis.text.x = element_text(angle = 0, hjust = 0.5, size = 12)
+  )
+
+celltype_plot_main <- ggplot(celltype_data, aes(x = Dataset, y = n, fill = predicted.id)) +
+  geom_bar(stat = "identity", position = "fill") +
+  scale_y_continuous(labels = scales::percent) +
+  labs(title = "Proportion of Cell Types Across Datasets", y = "Proportion", x = "") +
+  scale_fill_manual(values = color_palette_celltypes) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14),
+    legend.position = "none",  # Remove legend from main plot
+    plot.margin = unit(c(1, 1, 0, 1), "lines"),
+    axis.text.x = element_text(angle = 0, hjust = 0.5, size = 12)
+  )
+
+# Extract the legends from both plots
+status_legend <- cowplot::get_legend(
+  ggplot(status_data, aes(x = Dataset, y = n, fill = Status)) +
+    geom_bar(stat = "identity", position = "fill") +
+    scale_fill_manual(values = color_palette_status) +
+    theme(legend.position = "right")
+)
+
+celltype_legend <- cowplot::get_legend(
+  ggplot(celltype_data, aes(x = Dataset, y = n, fill = predicted.id)) +
+    geom_bar(stat = "identity", position = "fill") +
+    scale_fill_manual(values = color_palette_celltypes) +
+    theme(legend.position = "right")
+)
+
+# Arrange the plots and legends side by side, maintaining equal width for the plots
+combined_plot <- plot_grid(
+  plot_grid(status_plot_main, status_legend, rel_widths = c(6, 1)),  # Adjust widths as needed
+  plot_grid(celltype_plot_main, celltype_legend, rel_widths = c(6, 1)),  # Same width ratio for consistency
+  ncol = 1, rel_heights = c(1.5, 2.5)
+)
+
+# Save the final combined plot
+ggsave(filename = "/hpc/hers_en/rballieux/AlzheimersProofConcept/Classifiers/RunFiles/UMAPplots/DatasetOverview_Aligned.png", 
+       plot = combined_plot, 
+       width = 12,  # Keep the same width
+       height = 8,  # Keep the same height
+       dpi = 300,   # Resolution in dots per inch
+       units = "in")
+```
+
+
+
+```{r}
+id_per_statusSALS <- SALS_meta %>%
+  group_by(Status) %>%
+  summarise(num_unique_ids = n_distinct(id))
+
+id_per_statusC9ALS <- C9ALS_meta %>%
+  group_by(Status) %>%
+  summarise(num_unique_ids = n_distinct(id))
+
+id_per_statusAlzheimers <- Alzheimers_meta %>%
+  group_by(Status) %>%
+  summarise(num_unique_ids = n_distinct(id))
+
+print(id_per_statusSALS)
+print(id_per_statusC9ALS)
+print(id_per_statusAlzheimers)
+```
+```{r}
+color_palette_UMAP <- c(
+ "Excitatory" = "#1f77b4",       # Pleasant blue
+  "Inhibitory" = "#ff7f0e",       # Pleasant orange
+  "Astrocytes" = "#9467bd",       # Distinct purple
+  "Oligodendrocytes" = "#2ca02c", # Fresh green
+  "OPCs" = "#17becf",             # Bright cyan
+  "Microglia" = "#d62728",        # Strong red
+  "Endothelial" = "#8c564b",      # Brownish (small group)
+  "Pericytes" = "#bcbd22",        # Olive green (small group)
+  "Vasc" = "#7f7f7f"         # Grayish (small group)
+)
+```
+
+
+```{r}
+# Normalize the data
+Alzheimers <- NormalizeData(Alzheimers)
+
+# Identify highly variable features
+Alzheimers <- FindVariableFeatures(Alzheimers, selection.method = "vst", nfeatures = 2000)
+
+# Perform scaling and PCA
+Alzheimers <- ScaleData(Alzheimers)
+Alzheimers <- RunPCA(Alzheimers, npcs = 30)
+
+# Run UMAP
+Alzheimers <- RunUMAP(Alzheimers, dims = 1:10)
+```
+
+```{r}
+umap_plotAD <- DimPlot(Alzheimers, reduction = "umap", group.by = "predicted.id") +  
+  labs(title = "UMAP of Alzheimer's Dataset",
+       color = "Celltypes") +  # Rename the legend title to 'Celltypes'
+  scale_color_manual(values = color_palette_UMAP) +
+  theme_minimal(base_size = 14) +  # Use a minimal theme for clean appearance
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),  # Center and bold title
+    axis.text = element_blank(),  # Remove axis text
+    axis.title = element_blank(),  # Remove axis labels
+    axis.ticks = element_blank(),  # Remove axis ticks
+    panel.grid = element_blank(),  # Remove gridlines for a cleaner look
+    legend.title = element_text(size = 12),  # Adjust legend title font size
+    legend.text = element_text(size = 10),  # Adjust legend text size
+    legend.position = "right",  # Place the legend on the right
+    panel.border = element_rect(color = "black", fill = NA, size = 1)  # Add a black border around the plot
+  )
+
+ggsave(filename = "/hpc/hers_en/rballieux/AlzheimersProofConcept/Classifiers/RunFiles/UMAPplots/AD_UMAP.png", 
+       plot = umap_plotAD, 
+       width = 10,  # Width in inches (adjust as needed)
+       height = 8,  # Height in inches (adjust as needed)
+       dpi = 300,   # Resolution in dots per inch
+       units = "in")
+```
+
+```{r}
+# Normalize the data
+C9ALS <- NormalizeData(C9ALS)
+
+# Identify highly variable features
+C9ALS <- FindVariableFeatures(C9ALS, selection.method = "vst", nfeatures = 2000)
+
+# Perform scaling and PCA
+C9ALS <- ScaleData(C9ALS)
+C9ALS <- RunPCA(C9ALS, npcs = 30)
+
+# Run UMAP
+C9ALS <- RunUMAP(C9ALS, dims = 1:10)
+```
+
+```{r}
+umap_plotC9ALS <- DimPlot(C9ALS, reduction = "umap", group.by = "predicted.id") +  
+  labs(title = "UMAP of C9ALS Dataset",
+       color = "Celltypes") +  # Rename the legend title to 'Celltypes'
+  scale_color_manual(values = color_palette_UMAP) +
+  theme_minimal(base_size = 14) +  # Use a minimal theme for clean appearance
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),  # Center and bold title
+    axis.text = element_blank(),  # Remove axis text
+    axis.title = element_blank(),  # Remove axis labels
+    axis.ticks = element_blank(),  # Remove axis ticks
+    panel.grid = element_blank(),  # Remove gridlines for a cleaner look
+    legend.title = element_text(size = 12),  # Adjust legend title font size
+    legend.text = element_text(size = 10),  # Adjust legend text size
+    legend.position = "right",  # Place the legend on the right
+    panel.border = element_rect(color = "black", fill = NA, size = 1)  # Add a black border around the plot
+  )
+
+ggsave(filename = "/hpc/hers_en/rballieux/AlzheimersProofConcept/Classifiers/RunFiles/UMAPplots/C9ALS_UMAP.png", 
+       plot = umap_plotC9ALS, 
+       width = 10,  # Width in inches (adjust as needed)
+       height = 8,  # Height in inches (adjust as needed)
+       dpi = 300,   # Resolution in dots per inch
+       units = "in")
+```
+
+```{r}
+# Normalize the data
+SALS <- NormalizeData(SALS)
+
+# Identify highly variable features
+SALS <- FindVariableFeatures(SALS, selection.method = "vst", nfeatures = 2000)
+
+# Perform scaling and PCA
+SALS <- ScaleData(SALS)
+SALS <- RunPCA(SALS, npcs = 30)
+
+# Run UMAP
+SALS <- RunUMAP(SALS, dims = 1:10)
+```
+
+```{r}
+umap_plotSALS <- DimPlot(SALS, reduction = "umap", group.by = "predicted.id") +  
+  labs(title = "UMAP of SALS Dataset",
+       color = "Celltypes") +  # Rename the legend title to 'Celltypes'
+  scale_color_manual(values = color_palette_UMAP) +
+  theme_minimal(base_size = 14) +  # Use a minimal theme for clean appearance
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),  # Center and bold title
+    axis.text = element_blank(),  # Remove axis text
+    axis.title = element_blank(),  # Remove axis labels
+    axis.ticks = element_blank(),  # Remove axis ticks
+    panel.grid = element_blank(),  # Remove gridlines for a cleaner look
+    legend.title = element_text(size = 12),  # Adjust legend title font size
+    legend.text = element_text(size = 10),  # Adjust legend text size
+    legend.position = "right",  # Place the legend on the right
+    panel.border = element_rect(color = "black", fill = NA, size = 1)  # Add a black border around the plot
+  )
+
+ggsave(filename = "/hpc/hers_en/rballieux/AlzheimersProofConcept/Classifiers/RunFiles/UMAPplots/SALS_UMAP.png", 
+       plot = umap_plotSALS, 
+       width = 10,  # Width in inches (adjust as needed)
+       height = 8,  # Height in inches (adjust as needed)
+       dpi = 300,   # Resolution in dots per inch
+       units = "in")
+```
+
+
+
+```{r}
+final_combined_plot <- plot_grid(
+  combined_plot,           # Top-left plot (labeled A)
+  umap_plotAD,             # Top-right plot (labeled B)
+  umap_plotC9ALS,          # Bottom-left plot (labeled C)
+  umap_plotSALS,           # Bottom-right plot (labeled D)
+  labels = c("A", "B", "C", "D"),  # Labels for each plot
+  label_size = 16,         # Font size for labels
+  ncol = 2,                # Arrange in 2 columns
+  align = "hv"             # Align plots both horizontally and vertically
+)
+
+ggsave(filename = "/hpc/hers_en/rballieux/AlzheimersProofConcept/Classifiers/RunFiles/UMAPplots/Combined_DataPlots.png", 
+       plot = final_combined_plot, 
+       width = 16,  # Adjust width as needed
+       height = 12, # Adjust height as needed
+       dpi = 300,   # High resolution
+       units = "in")
+```
+

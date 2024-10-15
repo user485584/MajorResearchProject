@@ -1,0 +1,1163 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(Seurat)
+library(tidyverse)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(AnnotationDbi)
+library(KEGGREST)
+library(enrichplot)
+library(ggpubr)
+```
+
+
+
+```{r}
+ExtractReasonablyExpressedGenes <- function(datapath, threshold){
+  
+  data <- readRDS(datapath)
+  expression_matrix <- GetAssayData(data, assay = "RNA", layer = "counts")
+
+  percent_expressed <- rowSums(expression_matrix > 0) / ncol(expression_matrix) * 100
+
+  #Set a threshold for reasonably expressed genes (e.g., expressed in at least 10% of cells)
+  threshold <- threshold  
+  reasonably_expressed_genes <- names(percent_expressed[percent_expressed >= threshold])
+
+  return(reasonably_expressed_genes)
+
+}
+```
+
+```{r}
+BackgroundAlzheimer <- ExtractReasonablyExpressedGenes("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersProofConcept/Data/SeuratObject.rds", 10)
+BackgroundC9ALS <- ExtractReasonablyExpressedGenes("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/Data/C9ALS_Seurat_Downsampled.rds", 10)
+BackgroundSALS <- ExtractReasonablyExpressedGenes("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/Data/SALS_Seurat_Downsampled.rds", 10)
+```
+
+```{r}
+AlzheimersDEgenes <- readRDS("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/DifferentialExpressionAnalysis/AlzheimersDE_allcelltypes.rds")
+C9ALSDEgenes <- readRDS("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/DifferentialExpressionAnalysis/C9ALSDE_allcelltypes.rds")
+SALSDEgenes <- readRDS("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/DifferentialExpressionAnalysis/SALSDE_allcelltypes.rds")
+```
+
+
+```{r}
+all_importances <- read_csv("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ResultFiles/Importances/All_importances.csv")
+
+all_importances_redComplexity <- all_importances %>%
+  filter(Analysis != "TopPCs") %>%
+  mutate(redComplexity = case_when(
+    Analysis == "DEWGCNA" ~ "DEWGCNA",
+    grepl("randomfeatures", Analysis, ignore.case = TRUE) ~ "RandomFeatures",
+    Analysis == "VariableFeatures" ~ "VariableFeatures",
+    TRUE ~ NA_character_
+  ))
+
+top_n <- 100
+
+# Group by Disease and select the top N features for each disease
+top_features_by_disease_analysis_classifier <- all_importances_redComplexity %>%
+  filter(Analysis != "TopPCs") %>%
+  group_by(Disease, redComplexity, Classifier, GeneSymbol, EnsemblID) %>%
+  summarise(max_importance = max(relative_absimportance, na.rm = TRUE)) %>%
+  arrange(Disease, redComplexity, Classifier, desc(max_importance)) %>%
+  group_by(Disease, redComplexity, Classifier) %>%
+  top_n(n = top_n, wt = max_importance) %>%
+  ungroup()
+```
+
+```{r}
+CompleteBackgroundAlzheimer <- all_importances_redComplexity %>%
+  filter(Disease == "Alzheimers") %>%
+  filter(redComplexity == "RandomFeatures") %>%
+  dplyr::select(EnsemblID) %>%
+  unique() %>%
+  pull()
+
+CompleteBackgroundC9ALS <- all_importances_redComplexity %>%
+  filter(Disease == "C9ALS") %>%
+  filter(redComplexity == "RandomFeatures") %>%
+  dplyr::select(GeneSymbol) %>%
+  unique() %>%
+  pull()
+
+CompleteBackgroundSALS <- all_importances_redComplexity %>%
+  filter(Disease == "SALS") %>%
+  filter(redComplexity == "RandomFeatures") %>%
+  dplyr::select(GeneSymbol) %>%
+  unique() %>%
+  pull()
+```
+
+
+```{r}
+gene_symbol_to_ensembl <- all_importances_redComplexity %>%
+  filter(!is.na(GeneSymbol), !is.na(EnsemblID)) %>%  # Remove rows with NA GeneSymbol or EnsemblID
+  dplyr::select(GeneSymbol, EnsemblID) %>%
+  distinct()
+
+CompleteBackgroundC9ALS_ensembl <- CompleteBackgroundC9ALS %>%
+  tibble(GeneSymbol = .) %>%
+  left_join(gene_symbol_to_ensembl, by = "GeneSymbol") %>%
+  pull(EnsemblID)
+
+CompleteBackgroundSALS_ensembl <- CompleteBackgroundSALS %>%
+  tibble(GeneSymbol = .) %>%
+  left_join(gene_symbol_to_ensembl, by = "GeneSymbol") %>%
+  pull(EnsemblID)
+```
+
+
+
+
+#PATHWAY ENRICHMENT ANALYSIS
+```{r}
+diseases <- unique(top_features_by_disease_analysis_classifier$Disease)
+
+# Initialize separate variables for each disease
+Alzheimers_gene_symbols <- NULL
+Alzheimers_ensembl_ids <- NULL
+C9ALS_gene_symbols <- NULL
+C9ALS_ensembl_ids <- NULL
+SALS_gene_symbols <- NULL
+SALS_ensembl_ids <- NULL
+
+# Loop over each disease and assign to specific variables
+for (disease_name in diseases) {
+  
+  # Filter data for the specific disease
+  disease_data <- top_features_by_disease_analysis_classifier %>%
+    filter(Disease == disease_name)
+  
+  # Extract unique GeneSymbols and EnsemblIDs
+  unique_gene_symbols <- unique(disease_data$GeneSymbol)
+  unique_ensembl_ids <- unique(disease_data$EnsemblID)
+  
+  # Assign to disease-specific variables
+  if (disease_name == "Alzheimers") {
+    Alzheimers_gene_symbols <- unique_gene_symbols
+    Alzheimers_ensembl_ids <- unique_ensembl_ids
+  } else if (disease_name == "C9ALS") {
+    C9ALS_gene_symbols <- unique_gene_symbols
+    C9ALS_ensembl_ids <- unique_ensembl_ids
+  } else if (disease_name == "SALS") {
+    SALS_gene_symbols <- unique_gene_symbols
+    SALS_ensembl_ids <- unique_ensembl_ids
+  }
+}
+
+print("Alzheimer Genes")
+print(Alzheimers_gene_symbols)
+print(length(Alzheimers_gene_symbols))
+print(Alzheimers_ensembl_ids)
+print(length(Alzheimers_ensembl_ids))
+print("C9ALS Genes")
+print(C9ALS_gene_symbols)
+print(length(C9ALS_gene_symbols))
+print(C9ALS_ensembl_ids)
+print(length(C9ALS_ensembl_ids))
+print("SALS Genes")
+print(SALS_gene_symbols)
+print(length(SALS_gene_symbols))
+print(SALS_ensembl_ids)
+print(length(SALS_ensembl_ids))
+```
+
+```{r}
+create_gene_table <- function(gene_vector){
+  
+  # Determine the number of columns (adjust based on page layout)
+  # Sort the gene vector alphabetically
+  gene_vector <- sort(gene_vector)
+  n_columns <- 12
+  
+  # Calculate the number of rows needed
+  n_rows <- ceiling(length(gene_vector) / n_columns)
+  
+  # Create a matrix and fill it with your genes
+  gene_matrix <- matrix(NA, nrow = n_rows, ncol = n_columns)
+  gene_matrix[1:length(gene_vector)] <- gene_vector
+  
+  # Convert the matrix to a data frame
+  gene_df <- as.data.frame(gene_matrix)
+
+}
+
+AD_GeneDF <- create_gene_table(na.omit(Alzheimers_gene_symbols))
+C9ALS_GeneDF <- create_gene_table(C9ALS_gene_symbols)
+SALS_GeneDF <- create_gene_table(SALS_gene_symbols)
+Intersection_GeneDF <- create_gene_table(all_three_intersection)
+```
+
+```{r}
+make_gt_table <- function(gene_df){
+  gene_table <- gt(gene_df) %>%
+    tab_options(
+      table.font.size = "smaller",  # Adjust font size
+      data_row.padding = px(1),     # Reduce row padding
+      column_labels.font.size = "smaller"
+    )
+}
+
+gt_AD_ImportantGenes <- make_gt_table(AD_GeneDF)
+gt_C9ALS_ImportantGenes <- make_gt_table(C9ALS_GeneDF)
+gt_SALS_ImportantGenes <- make_gt_table(SALS_GeneDF)
+gt_intersection_ImportantGenes <- make_gt_table(Intersection_GeneDF)
+
+gtsave(gt_AD_ImportantGenes, "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/ImportantGenes_AD.png", vwidth = 1000)
+gtsave(gt_C9ALS_ImportantGenes, "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/ImportantGenes_C9ALS.png", vwidth = 1000)
+gtsave(gt_SALS_ImportantGenes, "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/ImportantGenes_SALS.png", vwidth = 1000)
+gtsave(gt_intersection_ImportantGenes, "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/ImportantGenes_Intersect.png", vwidth = 1000)
+```
+
+
+```{r}
+# Create a function to handle gene matching between different diseases
+get_gene_set <- function(df, disease) {
+  df %>%
+    filter(Disease == disease) %>%
+    # Coalesce will use GeneSymbol where available, else EnsemblID
+    #mutate(GeneID = coalesce(GeneSymbol, EnsemblID)) %>%
+    # Remove any rows with NA GeneID (missing both GeneSymbol and EnsemblID)
+    #filter(!is.na(GeneID)) %>%
+    pull(GeneSymbol) %>%
+    na.omit() %>%
+    unique()  # Return unique gene IDs for the disease
+}
+
+# Extract gene sets for each disease
+genes_alz <- get_gene_set(top_features_by_disease_analysis_classifier, "Alzheimers")
+genes_c9als <- get_gene_set(top_features_by_disease_analysis_classifier, "C9ALS")
+genes_sals <- get_gene_set(top_features_by_disease_analysis_classifier, "SALS")
+
+# Create pairwise intersections
+alz_c9als_intersection <- intersect(genes_alz, genes_c9als)
+alz_sals_intersection <- intersect(genes_alz, genes_sals)
+c9als_sals_intersection <- intersect(genes_c9als, genes_sals)
+
+# Intersection for all three diseases
+all_three_intersection <- Reduce(intersect, list(genes_alz, genes_c9als, genes_sals))
+
+# Calculate percentages for intersections
+calc_percentage <- function(intersection, set1, set2) {
+  percentage_set1 <- length(intersection) / length(set1) * 100
+  percentage_set2 <- length(intersection) / length(set2) * 100
+  return(list(percentage_set1 = percentage_set1, percentage_set2 = percentage_set2))
+}
+
+# Calculate intersection percentages
+alz_c9als_percentage <- calc_percentage(alz_c9als_intersection, genes_alz, genes_c9als)
+alz_sals_percentage <- calc_percentage(alz_sals_intersection, genes_alz, genes_sals)
+c9als_sals_percentage <- calc_percentage(c9als_sals_intersection, genes_c9als, genes_sals)
+
+# Results
+list(
+  alz_c9als_intersection = alz_c9als_intersection,
+  alz_c9als_percentage = alz_c9als_percentage,
+  
+  alz_sals_intersection = alz_sals_intersection,
+  alz_sals_percentage = alz_sals_percentage,
+  
+  c9als_sals_intersection = c9als_sals_intersection,
+  c9als_sals_percentage = c9als_sals_percentage,
+  
+  all_three_intersection = all_three_intersection,
+  all_three_percentage = length(all_three_intersection) / length(unique(c(genes_alz, genes_c9als, genes_sals))) * 100
+)
+```
+```{r}
+# Create a data frame based on the results
+table_data <- data.frame(
+  Comparison = c("AD and C9ALS", "AD and SALS", "C9ALS and SALS", "All Three Diseases"),
+  Shared_Genes = c(length(alz_c9als_intersection), length(alz_sals_intersection), length(c9als_sals_intersection), length(all_three_intersection)),
+  Percentage = c(
+    paste0(round(alz_c9als_percentage$percentage_set1, 2), "% (AD), ", round(alz_c9als_percentage$percentage_set2, 2), "% (C9ALS)"),
+    paste0(round(alz_sals_percentage$percentage_set1, 2), "% (AD), ", round(alz_sals_percentage$percentage_set2, 2), "% (SALS)"),
+    paste0(round(c9als_sals_percentage$percentage_set1, 2), "% (C9ALS), ", round(c9als_sals_percentage$percentage_set2, 2), "% (SALS)"),
+    paste0("29.30% (AD), 29.30% (C9ALS), 28.57% (SALS)")  # Based on the data you provided
+  )
+)
+
+# Create the gt table
+gt_table <- gt(table_data) %>%
+  tab_header(
+    title = "Overlap of Important Genes Across Diseases"
+  ) %>%
+  cols_label(
+    Comparison = "Comparison",
+    Shared_Genes = "Shared Genes",
+    Percentage = "Percentage of Each Disease's Top Genes"
+  ) %>%
+  fmt_number(
+    columns = vars(Shared_Genes),
+    decimals = 0
+  ) %>%
+  cols_align(
+    align = "center",
+    columns = everything()
+  ) %>%
+  tab_options(
+    table.width = pct(100),
+    column_labels.font.weight = "bold"
+  )
+
+# Display the gt table
+#gt_table
+gtsave(gt_table, "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/OverlapImportantGenes.png", vwidth = 700)
+```
+
+
+
+
+```{r}
+GOresultsIntersection <- enrichGO(gene = all_three_intersection, OrgDb = "org.Hs.eg.db", keyType = "SYMBOL", ont = "BP", universe = CompleteBackgroundC9ALS)
+as.data.frame(GOresultsIntersection)
+```
+
+```{r}
+go_df <- as.data.frame(GOresultsIntersection)
+
+# Set the number of terms to display (you can adjust this based on how many you'd like to show)
+show_terms <- 8  # You can modify this as needed
+
+# Create a dot plot for the top GO BP terms
+go_dotplot <- dotplot(GOresultsIntersection, showCategory = show_terms, 
+                      x = "GeneRatio", color = "p.adjust") + 
+  scale_color_gradient(low = "#1f78b4", high = "#e31a1c", name = "p.adjust") +  # Color gradient for p.adjust values
+  theme_minimal(base_size = 18) +  # Minimal theme for a clean look
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 18, face = "bold"),
+    axis.title.x = element_text(size = 16),
+    axis.title.y = element_text(size = 16),
+    axis.text.x = element_text(size = 14),
+    axis.text.y = element_text(size = 14),
+    legend.text = element_text(size = 12),
+    legend.position = "right",
+    legend.key.size = unit(0.3, "cm"),
+    legend.direction = "vertical"
+  ) +
+  labs(
+    title = "Top GO BP Terms (Intersect Important Genes)",
+    x = "Gene Ratio",
+    y = "GO Term"
+  )
+
+# Save the plot as a high-quality PNG for publication
+ggsave("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/GO_BP_IntersectImportGenes_Plot.png", go_dotplot, width = 12, height = 7, dpi = 300)
+
+# Display the plot
+print(go_dotplot)
+```
+
+```{r}
+fold_changesC9ALS <- C9ALSDEgenes$log2FoldChange
+names(fold_changesC9ALS) <- C9ALSDEgenes$gene
+
+fold_changesSALS <- SALSDEgenes$log2FoldChange
+names(fold_changesSALS) <- SALSDEgenes$gene
+
+mapping <- all_importances %>%
+  filter(Disease == "Alzheimers") %>%
+  dplyr::select(GeneSymbol, EnsemblID) %>%
+  unique()
+
+AlzheimersDEgenes <- AlzheimersDEgenes %>%
+  left_join(mapping, by = c("gene" = "EnsemblID"))
+
+fold_changesAlzheimers <- AlzheimersDEgenes$log2FoldChange
+names(fold_changesAlzheimers) <- AlzheimersDEgenes$GeneSymbol
+
+fold_changesAlzheimers <- fold_changesAlzheimers[!is.na(names(fold_changesAlzheimers))]
+```
+
+```{r}
+print("Nr of Disease Genes found important by Classifiers")
+length(all_three_intersection)
+
+uniqueDEgenes <- unique(c(names(fold_changesAlzheimers), names(fold_changesC9ALS), names(fold_changesSALS)))
+print("Nr of Differentially Expressed genes as indicated by (pseudobulked-) DE analysis")
+length(uniqueDEgenes)
+print("Genes Intersect between the two")
+intersect(all_three_intersection, uniqueDEgenes)
+print("Nr of Genes in Intersect between the two")
+length(intersect(all_three_intersection, uniqueDEgenes))
+print("Fraction of genes in intersect of the two compared to genes found important by classifier")
+length(intersect(all_three_intersection, uniqueDEgenes))/length(all_three_intersection)
+```
+
+```{r}
+print("Nr of Disease Genes found important by Classifiers")
+length(genes_alz)
+print("Nr of Differentially Expressed genes as indicated by (pseudobulked-) DE analysis")
+length(unique(AlzheimersDEgenes$GeneSymbol))
+print("Genes Intersect between the two")
+intersect(genes_alz, AlzheimersDEgenes$GeneSymbol)
+print("Nr of Genes in Intersect between the two")
+length(intersect(genes_alz, AlzheimersDEgenes$GeneSymbol))
+print("Fraction of genes in intersect of the two compared to genes found important by classifier")
+length(intersect(genes_alz, AlzheimersDEgenes$GeneSymbol))/length(genes_alz)
+```
+
+```{r}
+print("Nr of Disease Genes found important by Classifiers")
+length(genes_c9als)
+print("Nr of Differentially Expressed genes as indicated by (pseudobulked-) DE analysis")
+length(C9ALSDEgenes$gene)
+print("Genes Intersect between the two")
+intersect(genes_c9als, C9ALSDEgenes$gene)
+print("Nr of Genes in Intersect between the two")
+length(intersect(genes_c9als, C9ALSDEgenes$gene))
+print("Fraction of genes in intersect of the two compared to genes found important by classifier")
+length(intersect(genes_c9als, C9ALSDEgenes$gene))/length(genes_c9als)
+```
+
+```{r}
+print("Nr of Disease Genes found important by Classifiers")
+length(genes_sals)
+print("Nr of Differentially Expressed genes as indicated by (pseudobulked-) DE analysis")
+length(SALSDEgenes$gene)
+print("Genes Intersect between the two")
+intersect(genes_sals, SALSDEgenes$gene)
+print("Nr of Genes in Intersect between the two")
+length(intersect(genes_sals, SALSDEgenes$gene))
+print("Fraction of genes in intersect of the two compared to genes found important by classifier")
+length(intersect(genes_sals, SALSDEgenes$gene))/length(genes_sals)
+```
+
+```{r}
+AD_Overlap_DF <- create_gene_table(intersect(genes_alz, AlzheimersDEgenes$GeneSymbol))
+gt_AD_Overlap <- make_gt_table(AD_Overlap_DF)
+gtsave(gt_AD_Overlap, "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/OverlapImportancesDE_AD.png", vwidth = 1000)
+
+C9ALS_Overlap_DF <- create_gene_table(intersect(genes_c9als, C9ALSDEgenes$gene))
+gt_C9ALS_Overlap <- make_gt_table(C9ALS_Overlap_DF)
+gtsave(gt_C9ALS_Overlap, "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/OverlapImportancesDE_C9ALS.png", vwidth = 1000)
+
+SALS_Overlap_DF <- create_gene_table(intersect(genes_sals, SALSDEgenes$gene))
+gt_SALS_Overlap <- make_gt_table(SALS_Overlap_DF)
+gtsave(gt_SALS_Overlap, "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/OverlapImportancesDE_SALS.png", vwidth = 1000)
+```
+
+```{r}
+create_gene_fold_table <- function(df, n_columns = 10) {
+  
+ if (n_columns %% 2 != 0) {
+    stop("Number of columns must be even to accommodate both gene symbols and fold changes.")
+  }
+  
+  # Remove rows with NA in GeneSymbol or log2FoldChange
+  df <- df[!is.na(df$GeneSymbol) & !is.na(df$log2FoldChange), ]
+  
+  # Calculate the number of rows needed for the given number of columns
+  n_rows <- ceiling(nrow(df) / (n_columns / 2))
+  
+  # Initialize an empty matrix to store the gene symbols and fold changes
+  gene_fold_matrix <- matrix(NA, nrow = n_rows, ncol = n_columns)
+  
+  # Split the data into alternating columns (fill vertically)
+  for (j in seq(1, n_columns, by = 2)) {
+    # Calculate start and end indices for the slice of data to fill this column
+    start_idx <- ((j - 1) / 2) * n_rows + 1
+    end_idx <- min(((j - 1) / 2 + 1) * n_rows, nrow(df))  # Ensure we don't go beyond the dataframe length
+    
+    # Insert gene symbols into the odd columns
+    gene_fold_matrix[1:(end_idx - start_idx + 1), j] <- df$GeneSymbol[start_idx:end_idx]
+    
+    # Insert fold changes into the even columns
+    gene_fold_matrix[1:(end_idx - start_idx + 1), j + 1] <- round(df$log2FoldChange[start_idx:end_idx], 2)
+  }
+  
+  # Convert the matrix to a data frame
+  gene_fold_df <- as.data.frame(gene_fold_matrix)
+  
+  # Assign alternating column names with unique indices: "Gene Symbol 1", "Fold Change 1", "Gene Symbol 2", "Fold Change 2"
+  colnames(gene_fold_df) <- c(rbind(paste0("Gene Symbol ", 1:(n_columns / 2)), paste0("Fold Change ", 1:(n_columns / 2))))
+  
+  # Return the resulting data frame
+  return(gene_fold_df)
+
+}
+
+# Example for Alzheimer's DE Genes
+Alzheimers_gene_fold_table <- create_gene_fold_table(na.omit(AlzheimersDEgenes100))
+C9ALS_gene_fold_table <- create_gene_fold_table(C9ALSDEgenes100)
+SALS_gene_fold_table <- create_gene_fold_table(SALSDEgenes100)
+```
+
+```{r}
+gt_AD_DE <- make_gt_table(Alzheimers_gene_fold_table)
+gtsave(gt_AD_DE, "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/DEgenesTop200_AD.png", vwidth = 1000)
+
+gt_C9ALS_DE <- make_gt_table(C9ALS_gene_fold_table)
+gtsave(gt_C9ALS_DE, "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/DEgenesTop200_C9ALS.png", vwidth = 1000)
+
+gt_SALS_DE <- make_gt_table(SALS_gene_fold_table)
+gtsave(gt_SALS_DE, "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/DEgenesTop200_SALS.png", vwidth = 1000)
+```
+
+
+```{r}
+AlzheimersGOresultsfullBack <- enrichGO(gene = Alzheimers_ensembl_ids, OrgDb = "org.Hs.eg.db", keyType = "ENSEMBL", ont = "BP", universe = CompleteBackgroundAlzheimer)
+as.data.frame(AlzheimersGOresultsfullBack)
+```
+
+
+```{r}
+C9ALSGOresultsfullBack <- enrichGO(gene = C9ALS_gene_symbols, OrgDb = "org.Hs.eg.db", keyType = "SYMBOL", ont = "BP", universe = CompleteBackgroundC9ALS)
+as.data.frame(C9ALSGOresultsfullBack)
+```
+
+
+
+```{r}
+SALSGOresultsfullBack <- enrichGO(gene = SALS_gene_symbols, OrgDb = "org.Hs.eg.db", keyType = "SYMBOL", ont = "BP", universe = CompleteBackgroundSALS)
+as.data.frame(SALSGOresultsfullBack)
+```
+
+
+#Semantic analysis of GOresults
+```{r}
+library(rrvgo)
+```
+
+
+```{r}
+Intersection_simMatrix <- calculateSimMatrix(GOresultsIntersection$ID,
+                                orgdb="org.Hs.eg.db",
+                                ont="BP",
+                                method="Rel")
+
+scores <- setNames(-log10(GOresultsIntersection$qvalue), GOresultsIntersection$ID)
+Intersection_reducedTerms <- reduceSimMatrix(Intersection_simMatrix,
+                                scores,
+                                threshold=0.9,
+                                orgdb="org.Hs.eg.db")
+
+treemapPlot(Intersection_reducedTerms, size = "size")
+```
+
+
+
+```{r}
+Alzheimer_simMatrix <- calculateSimMatrix(AlzheimersGOresultsfullBack$ID,
+                                orgdb="org.Hs.eg.db",
+                                ont="BP",
+                                method="Rel")
+
+scores <- setNames(-log10(AlzheimersGOresultsfullBack$qvalue), AlzheimersGOresultsfullBack$ID)
+Alzheimer_reducedTerms <- reduceSimMatrix(Alzheimer_simMatrix,
+                                scores,
+                                threshold=0.5,
+                                orgdb="org.Hs.eg.db")
+```
+
+```{r}
+C9ALS_simMatrix <- calculateSimMatrix(C9ALSGOresultsfullBack$ID,
+                                orgdb="org.Hs.eg.db",
+                                ont="BP",
+                                method="Rel")
+
+scores <- setNames(-log10(C9ALSGOresultsfullBack$qvalue), C9ALSGOresultsfullBack$ID)
+C9ALS_reducedTerms <- reduceSimMatrix(C9ALS_simMatrix,
+                                scores,
+                                threshold=0.5,
+                                orgdb="org.Hs.eg.db")
+```
+
+```{r}
+SALS_simMatrix <- calculateSimMatrix(SALSGOresultsfullBack$ID,
+                                orgdb="org.Hs.eg.db",
+                                ont="BP",
+                                method="Rel")
+
+scores <- setNames(-log10(SALSGOresultsfullBack$qvalue), SALSGOresultsfullBack$ID)
+SALS_reducedTerms <- reduceSimMatrix(SALS_simMatrix,
+                                scores,
+                                threshold=0.5,
+                                orgdb="org.Hs.eg.db")
+```
+
+```{r}
+treemapPlot(Alzheimer_reducedTerms)
+treemapPlot(C9ALS_reducedTerms)
+treemapPlot(SALS_reducedTerms)
+```
+
+```{r}
+scores <- setNames(-log10(AlzheimersGOresultsfullBack$qvalue), AlzheimersGOresultsfullBack$ID)
+Alzheimer_reducedTerms <- reduceSimMatrix(Alzheimer_simMatrix,
+                                scores,
+                                threshold=0.9,
+                                orgdb="org.Hs.eg.db")
+
+scores <- setNames(-log10(C9ALSGOresultsfullBack$qvalue), C9ALSGOresultsfullBack$ID)
+C9ALS_reducedTerms <- reduceSimMatrix(C9ALS_simMatrix,
+                                scores,
+                                threshold=0.9,
+                                orgdb="org.Hs.eg.db")
+
+scores <- setNames(-log10(SALSGOresultsfullBack$qvalue), SALSGOresultsfullBack$ID)
+SALS_reducedTerms <- reduceSimMatrix(SALS_simMatrix,
+                                scores,
+                                threshold=0.9,
+                                orgdb="org.Hs.eg.db")
+
+treemapPlot(Alzheimer_reducedTerms)
+treemapPlot(C9ALS_reducedTerms)
+treemapPlot(SALS_reducedTerms)
+```
+
+```{r}
+scores <- setNames(-log10(AlzheimersGOresultsfullBack$qvalue), AlzheimersGOresultsfullBack$ID)
+Alzheimer_reducedTerms <- reduceSimMatrix(Alzheimer_simMatrix,
+                                scores,
+                                threshold=0.9,
+                                orgdb="org.Hs.eg.db")
+
+scores <- setNames(-log10(C9ALSGOresultsfullBack$qvalue), C9ALSGOresultsfullBack$ID)
+C9ALS_reducedTerms <- reduceSimMatrix(C9ALS_simMatrix,
+                                scores,
+                                threshold=0.9,
+                                orgdb="org.Hs.eg.db")
+
+scores <- setNames(-log10(SALSGOresultsfullBack$qvalue), SALSGOresultsfullBack$ID)
+SALS_reducedTerms <- reduceSimMatrix(SALS_simMatrix,
+                                scores,
+                                threshold=0.9,
+                                orgdb="org.Hs.eg.db")
+
+treemapPlot(Alzheimer_reducedTerms, size = "size")
+treemapPlot(C9ALS_reducedTerms, size = "size")
+treemapPlot(SALS_reducedTerms, size = "size")
+```
+
+```{r}
+Alzheimer_reducedTermsReduced <- Alzheimer_reducedTerms %>%
+  group_by(cluster) %>%
+  summarise(Parent = dplyr::first(parent),
+            ParentTerm = dplyr::first(parentTerm),
+            Size = sum(size),
+            Score = sum(score)) %>%
+  arrange(-Size)
+
+C9ALS_reducedTermsReduced <- C9ALS_reducedTerms %>%
+  group_by(cluster) %>%
+  summarise(Parent = dplyr::first(parent),
+            ParentTerm = dplyr::first(parentTerm),
+            Size = sum(size),
+            Score = sum(score)) %>%
+  arrange(-Size)
+
+SALS_reducedTermsReduced <- SALS_reducedTerms %>%
+  group_by(cluster) %>%
+  summarise(Parent = dplyr::first(parent),
+            ParentTerm = dplyr::first(parentTerm),
+            Size = sum(size),
+            Score = sum(score)) %>%
+  arrange(-Size)
+
+as.data.frame(Alzheimer_reducedTermsReduced)
+as.data.frame(C9ALS_reducedTermsReduced)
+as.data.frame(SALS_reducedTermsReduced)
+```
+
+
+```{r}
+# Save Alzheimer's Disease Treemap
+png("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/Alzheimer_treemap.png", 
+    width = 5, height = 5, units = "in", res = 600)
+treemapPlot(Alzheimer_reducedTerms, size = "size")
+dev.off()
+
+# Save C9ALS Treemap
+png("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/C9ALS_treemap.png", 
+    width = 5, height = 5, units = "in", res = 600)
+treemapPlot(C9ALS_reducedTerms, size = "size")
+dev.off()
+
+# Save SALS Treemap
+png("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/SALS_treemap.png", 
+    width = 5, height = 5, units = "in", res = 600)
+treemapPlot(SALS_reducedTerms, size = "size")
+dev.off()
+
+png("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/Intersection_treemap.png", 
+    width = 5, height = 5, units = "in", res = 600)
+treemapPlot(Intersection_reducedTerms, size = "size")
+dev.off()
+
+# Create empty placeholders for the treemaps
+empty_plot <- ggdraw() + 
+  draw_label("Placeholder for Treemap", fontface = "italic", size = 16)
+
+# Combine empty plots using cowplot::plot_grid()
+combined_treemap_structure <- plot_grid(
+  empty_plot, empty_plot, empty_plot, empty_plot,
+  ncol = 2, nrow = 2, labels = c("A", "B", "C", "D"),
+  label_size = 14, label_fontface = "bold"
+)
+
+# Add the comprehensive title
+title <- ggdraw() + 
+  draw_label(
+    "Treemap of GO Biological Process Terms after Semantic Similarity Analysis", 
+    fontface = 'bold', size = 18, x = 0.5, hjust = 0.5
+  )
+
+# Combine title and placeholder plots
+final_structure <- plot_grid(title, combined_treemap_structure,nrow = 2, rel_heights = c(0.1, 1))
+
+# Save the structure plot
+ggsave("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/Combined_StructureRVVGO.png", 
+       final_structure, width = 16, height = 18, dpi = 600)
+
+```
+
+
+
+
+```{r}
+selected_go_terms <- SALS_reducedTermsReduced$Parent[1:5]
+
+go_subset <- SALSGOresultsfullBack %>%
+  filter(ID %in% selected_go_terms) 
+
+# Extract the gene symbols in the 'geneID' column and split them into individual gene symbols
+gene_symbols_in_go <- unique(unlist(strsplit(go_subset$geneID, "/")))
+
+# Step 2: Filter the genes to only those present in fold_changesSALS
+genes_in_fold_changes <- intersect(gene_symbols_in_go, names(fold_changesSALS))
+
+# Step 3: Subset the GO result data for the filtered genes
+go_subset_filtered <- go_subset %>%
+  mutate(geneID = sapply(strsplit(geneID, "/"), function(genes) {
+    paste(intersect(genes, genes_in_fold_changes), collapse = "/")
+  })) %>%
+  filter(geneID != "")  # Remove rows with no matching genes
+
+# Step 4: Generate the heatmap using heatplot() with the filtered genes
+heatplot(go_subset_filtered, foldChange = fold_changesSALS, showCategory = length(selected_go_terms)) +
+  theme_minimal(base_size = 14) +
+  labs(
+    title = "Heatmap of Selected GO Biological Processes",
+    x = "Genes",
+    y = "GO Terms"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 18, face = "bold"),
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 12),
+    axis.text.y = element_text(size = 12),
+    legend.text = element_text(size = 12)
+  )
+```
+
+
+
+
+
+###KEGG
+
+```{r}
+# Get all KEGG pathways for human
+kegg_hs <- keggList("pathway", "hsa")
+
+# Subset to pathways related to signaling and metabolism
+# For example, you can filter by keywords like "signaling" or "metabolism" in the pathway description
+kegg_paths_subset <- kegg_hs[grep("signaling|metabolism", kegg_hs, ignore.case = TRUE)]
+```
+
+
+```{r}
+Alzheimers_entrez_ids <- bitr(Alzheimers_ensembl_ids, fromType = "ENSEMBL", 
+                     toType = "ENTREZID", 
+                     OrgDb = org.Hs.eg.db)
+
+AlzheimersBack_entrez_ids <- bitr(CompleteBackgroundAlzheimer, fromType = "ENSEMBL", 
+                     toType = "ENTREZID", 
+                     OrgDb = org.Hs.eg.db)
+
+
+Alzheimers_entrez_ids <- Alzheimers_entrez_ids$ENTREZID
+AlzheimersBack_entrez_ids <- AlzheimersBack_entrez_ids$ENTREZID
+
+Alzheimers_kegg <- enrichKEGG(gene = Alzheimers_entrez_ids, 
+                           organism = 'hsa',
+                           universe = AlzheimersBack_entrez_ids,
+                           pvalueCutoff = 0.05)  
+
+# View the results
+as.data.frame(Alzheimers_kegg)
+```
+
+```{r}
+Alzheimers_kegg_sigmet <- Alzheimers_kegg
+Alzheimers_kegg_sigmet@result <- Alzheimers_kegg@result %>%
+  filter(ID %in% names(kegg_paths_subset))
+
+as.data.frame(Alzheimers_kegg_sigmet)
+```
+
+
+
+```{r}
+C9ALS_entrez_ids <- bitr(C9ALS_ensembl_ids, fromType = "ENSEMBL", 
+                     toType = "ENTREZID", 
+                     OrgDb = org.Hs.eg.db)
+
+C9ALSBack_entrez_ids <- bitr(CompleteBackgroundC9ALS_ensembl, fromType = "ENSEMBL", 
+                     toType = "ENTREZID", 
+                     OrgDb = org.Hs.eg.db)
+
+C9ALS_entrez_ids <- C9ALS_entrez_ids$ENTREZID
+C9ALSBack_entrez_ids <- C9ALSBack_entrez_ids$ENTREZID
+
+C9ALS_kegg <- enrichKEGG(gene = C9ALS_entrez_ids, 
+                           organism = 'hsa', 
+                           universe = C9ALSBack_entrez_ids,
+                           pvalueCutoff = 0.05)  
+
+# View the results
+as.data.frame(C9ALS_kegg)
+```
+
+```{r}
+C9ALS_kegg_sigmet <- C9ALS_kegg
+C9ALS_kegg_sigmet@result <- C9ALS_kegg@result %>%
+  filter(ID %in% names(kegg_paths_subset))
+
+as.data.frame(C9ALS_kegg_sigmet)
+```
+
+
+
+```{r}
+SALS_entrez_ids <- bitr(SALS_ensembl_ids, fromType = "ENSEMBL", 
+                     toType = "ENTREZID", 
+                     OrgDb = org.Hs.eg.db)
+
+SALSBack_entrez_ids <- bitr(CompleteBackgroundSALS_ensembl, fromType = "ENSEMBL", 
+                     toType = "ENTREZID", 
+                     OrgDb = org.Hs.eg.db)
+
+SALS_entrez_ids <- SALS_entrez_ids$ENTREZID
+SALSBack_entrez_ids <- SALSBack_entrez_ids$ENTREZID
+
+SALS_kegg <- enrichKEGG(gene = SALS_entrez_ids, 
+                           organism = 'hsa',  
+                           pvalueCutoff = 0.05)  
+
+# View the results
+as.data.frame(SALS_kegg)
+```
+
+```{r}
+SALS_kegg_sigmet <- SALS_kegg
+SALS_kegg_sigmet@result <- SALS_kegg@result %>%
+  filter(ID %in% names(kegg_paths_subset))
+
+as.data.frame(SALS_kegg_sigmet)
+```
+
+```{r}
+dotplot(Alzheimers_kegg, showCategory = 10)
+dotplot(C9ALS_kegg, showCategory = 10)
+dotplot(SALS_kegg, showCategory = 10)
+```
+
+
+
+```{r}
+# Reduce the number of pathways from 20 to 10
+show_pathways <- 10
+
+# Step 1: Extract the p.adjust values from the top 10 pathways of each dataset
+top_alz_padj <- Alzheimers_kegg@result %>%
+  filter(Description %in% Alzheimers_kegg@result$Description[1:show_pathways]) %>%
+  pull(p.adjust)
+
+top_c9als_padj <- C9ALS_kegg@result %>%
+  filter(Description %in% C9ALS_kegg@result$Description[1:show_pathways]) %>%
+  pull(p.adjust)
+
+top_sals_padj <- SALS_kegg@result %>%
+  filter(Description %in% SALS_kegg@result$Description[1:show_pathways]) %>%
+  pull(p.adjust)
+
+# Combine p.adjust values from all three diseases
+all_p_adjusts <- c(top_alz_padj, top_c9als_padj, top_sals_padj)
+
+# Set custom breaks for the p.adjust legend and format it in scientific notation
+p_adjust_breaks <- c(min(all_p_adjusts), 4e-5, 8e-5, max(all_p_adjusts))
+p_adjust_labels <- scales::scientific(p_adjust_breaks)
+
+# Step 2: Create a function to apply consistent color gradient to each plot
+create_dotplot <- function(kegg_result, disease_name) {
+  dotplot(kegg_result, showCategory = show_pathways, 
+          title = paste0("KEGG Enrichment Important Genes (",disease_name, ")"), 
+          x = "GeneRatio", color = "p.adjust", font.size = 14) + 
+    scale_color_gradient(low = "#1f78b4", high = "#e31a1c", 
+                         name = "p.adjust", limits = range(all_p_adjusts),
+                         breaks = p_adjust_breaks, labels = p_adjust_labels) +
+    theme_minimal(base_size = 18) +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 18, face = "bold"),
+      axis.title.x = element_text(size = 16),  # Show x-axis for all plots
+      axis.title.y = element_text(size = 16),
+      axis.text.x = element_text(size = 14),
+      axis.text.y = element_text(size = 14),
+      legend.text = element_text(size = 12),
+      legend.position = "right",
+      legend.key.size = unit(0.3, "cm"),
+      legend.direction = "vertical"
+    )
+}
+
+# Step 3: Generate individual plots for each disease
+
+# Alzheimer's Disease plot
+dotplot_alz <- create_dotplot(Alzheimers_kegg, "AD")
+
+# C9ALS plot
+dotplot_c9als <- create_dotplot(C9ALS_kegg, "C9ALS")
+
+# SALS plot
+dotplot_sals <- create_dotplot(SALS_kegg, "SALS")
+
+# Step 4: Combine the plots into a single figure with the legend at the bottom
+
+combined_plot_3x1 <- ggarrange(
+  dotplot_alz, dotplot_c9als, dotplot_sals, 
+  ncol = 3, nrow = 1,  # Arrange in 3 columns, 1 row
+  common.legend = TRUE,  # Use a common legend for all plots
+  legend = "bottom"  # Place the legend at the bottom
+)
+
+# Add a comprehensive title to the plot
+combined_plot_3x1 <- annotate_figure(combined_plot_3x1,
+                                     top = text_grob("KEGG Pathway Enrichment Analysis for Alzheimer's, C9ALS, and SALS", 
+                                                     face = "bold", size = 18))
+
+# Step 5: Save the combined plot
+ggsave("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/combined_kegg_dotplot_3x1.png", 
+       combined_plot_3x1, width = 16, height = 9, dpi = 300)
+
+# Display the combined plot
+print(combined_plot_3x1)
+```
+
+
+```{r}
+# Combine the plots into a 2x2 layout
+combined_plot_2x2 <- ggarrange(
+  go_dotplot, dotplot_alz, dotplot_c9als, dotplot_sals,
+  labels = c("A", "B", "C", "D"),  # Add labels to indicate each plot
+  ncol = 2, nrow = 2,  # Arrange in 2 columns and 2 rows
+  common.legend = FALSE  # Each plot has its own legend
+)
+
+# Save the combined plot as a high-quality PNG for publication
+ggsave("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/combined_GOBPandKEGG2x2_plot.png", 
+       combined_plot_2x2, width = 14, height = 14, dpi = 600)
+```
+
+
+
+```{r}
+dotplot(Alzheimers_kegg_sigmet, showCategory = 10)
+dotplot(C9ALS_kegg_sigmet, showCategory = 10)
+dotplot(SALS_kegg_sigmet, showCategory = 10)
+```
+
+```{r}
+AlzheimersDEgenes <- readRDS("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/DifferentialExpressionAnalysis/AlzheimersDE_allcelltypes.rds")
+C9ALSDEgenes <- readRDS("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/DifferentialExpressionAnalysis/C9ALSDE_allcelltypes.rds")
+SALSDEgenes <- readRDS("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/DifferentialExpressionAnalysis/SALSDE_allcelltypes.rds")
+```
+
+```{r}
+library(pathview)
+```
+
+
+#Alzheimers
+```{r}
+ensembl_entrez_map <- AnnotationDbi::select(
+  org.Hs.eg.db,
+  keys = AlzheimersDEgenes$gene,
+  keytype = "ENSEMBL",
+  columns = c("ENSEMBL", "ENTREZID")
+)
+
+AlzheimersDEgenes <- AlzheimersDEgenes %>%
+  left_join(ensembl_entrez_map, by = c("gene" = "ENSEMBL"))
+
+AlzheimersDEgenes <- AlzheimersDEgenes %>%
+  filter(!is.na(ENTREZID)) %>%
+  distinct(ENTREZID, .keep_all = TRUE)
+```
+
+```{r}
+fold_changes <- AlzheimersDEgenes$log2FoldChange
+names(fold_changes) <- AlzheimersDEgenes$ENTREZID
+```
+
+```{r}
+kegg_results <- Alzheimers_kegg@result
+
+rle_columns <- sapply(kegg_results, function(x) inherits(x, "Rle"))
+
+# Convert 'Rle' columns to vectors
+if (any(rle_columns)) {
+  kegg_results <- kegg_results %>%
+    mutate(across(which(rle_columns), as.vector))
+}
+
+# For example, select the top 5 pathways
+top_pathways <- kegg_results %>%
+  arrange(p.adjust) %>%
+  head(5)
+
+# Get the pathway IDs
+pathway_ids <- top_pathways$ID
+
+# View the pathway IDs and descriptions
+pathways_info <- top_pathways %>%
+  dplyr::select(ID, Description)
+print(pathways_info)
+```
+
+```{r}
+output_directory <- "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/Enrichment/Alzheimers/"
+setwd(output_directory)
+output_suffix <- "Alzheimers"  # Replace with your desired file name suffix
+
+# Run pathview for each pathway ID, specifying the output directory and file name suffix
+tmp <- sapply(pathway_ids, function(pid) {
+  pathview(gene.data = fold_changes, 
+           pathway.id = pid, 
+           species = "hsa",
+           out.suffix = output_suffix,  # Custom suffix for the output file name
+           kegg.dir = output_directory,
+           kegg.native = TRUE,  # Keep KEGG native layout
+           file.type = "png")  # Specify the output directory
+})
+```
+
+```{r}
+SYMBOL_entrez_map <- AnnotationDbi::select(
+  org.Hs.eg.db,
+  keys = C9ALSDEgenes$gene,
+  keytype = "SYMBOL",
+  columns = c("SYMBOL", "ENTREZID")
+)
+
+C9ALSDEgenes <- C9ALSDEgenes %>%
+  left_join(SYMBOL_entrez_map, by = c("gene" = "SYMBOL"))
+
+C9ALSDEgenes <- C9ALSDEgenes %>%
+  filter(!is.na(ENTREZID)) %>%
+  distinct(ENTREZID, .keep_all = TRUE)
+```
+
+```{r}
+fold_changes <- C9ALSDEgenes$log2FoldChange
+names(fold_changes) <- C9ALSDEgenes$ENTREZID
+```
+
+```{r}
+kegg_results <- C9ALS_kegg@result
+
+
+# For example, select the top 5 pathways
+top_pathways <- kegg_results %>%
+  arrange(p.adjust) %>%
+  head(5)
+
+# Get the pathway IDs
+pathway_ids <- top_pathways$ID
+
+# View the pathway IDs and descriptions
+pathways_info <- top_pathways %>%
+  dplyr::select(ID, Description)
+print(pathways_info)
+```
+```{r}
+output_directory <- "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/Enrichment/C9ALS/"
+setwd(output_directory)
+output_suffix <- "C9ALS"  # Replace with your desired file name suffix
+
+# Run pathview for each pathway ID, specifying the output directory and file name suffix
+tmp <- sapply(pathway_ids, function(pid) {
+  pathview(gene.data = fold_changes, 
+           pathway.id = pid, 
+           species = "hsa",
+           out.suffix = output_suffix,  # Custom suffix for the output file name
+           kegg.dir = output_directory,
+           kegg.native = TRUE,  # Keep KEGG native layout
+           file.type = "png")  # Specify the output directory
+})
+```
+```{r}
+SYMBOL_entrez_map <- AnnotationDbi::select(
+  org.Hs.eg.db,
+  keys = SALSDEgenes$gene,
+  keytype = "SYMBOL",
+  columns = c("SYMBOL", "ENTREZID")
+)
+
+SALSDEgenes <- SALSDEgenes %>%
+  left_join(SYMBOL_entrez_map, by = c("gene" = "SYMBOL"))
+
+SALSDEgenes <- SALSDEgenes %>%
+  filter(!is.na(ENTREZID)) %>%
+  distinct(ENTREZID, .keep_all = TRUE)
+```
+
+```{r}
+fold_changes <- SALSDEgenes$log2FoldChange
+names(fold_changes) <- SALSDEgenes$ENTREZID
+```
+
+```{r}
+kegg_results <- SALS_kegg@result
+
+
+# For example, select the top 5 pathways
+top_pathways <- kegg_results %>%
+  arrange(p.adjust) %>%
+  head(6)
+
+top_pathways <- top_pathways[top_pathways$ID != "hsa04723",]
+# Get the pathway IDs
+pathway_ids <- top_pathways$ID
+
+# View the pathway IDs and descriptions
+pathways_info <- top_pathways %>%
+  dplyr::select(ID, Description)
+print(pathways_info)
+```
+
+```{r}
+output_directory <- "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/Enrichment/SALS/"
+setwd(output_directory)
+output_suffix <- "SALS"  # Replace with your desired file name suffix
+
+# Run pathview for each pathway ID, specifying the output directory and file name suffix
+tmp <- sapply(pathway_ids, function(pid) {
+  pathview(gene.data = fold_changes, 
+           pathway.id = pid, 
+           species = "hsa",
+           out.suffix = output_suffix,  # Custom suffix for the output file name
+           kegg.dir = output_directory,
+           kegg.native = TRUE,  # Keep KEGG native layout
+           file.type = "png")  # Specify the output directory
+})
+```
+

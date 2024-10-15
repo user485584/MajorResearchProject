@@ -1,0 +1,309 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+source("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Classifiers/Scripts/CombineFolds.R")
+```
+
+```{r}
+combineDEWGCNAfiles <- function(FilePath){
+  fold1 <- readRDS(paste0(FilePath,"fold_results_Fold1.rds"))
+  fold2 <- readRDS(paste0(FilePath,"fold_results_Fold2.rds"))
+  fold3 <- readRDS(paste0(FilePath,"fold_results_Fold3.rds"))
+  fold4 <- readRDS(paste0(FilePath,"fold_results_Fold4.rds"))
+  fold5 <- readRDS(paste0(FilePath,"fold_results_Fold5.rds"))
+  
+  df <- rbind(fold1, fold2) %>% rbind(fold3) %>% rbind(fold4) %>% rbind(fold5)
+  
+  saveRDS(df, paste0(FilePath, "results_df_Foldall.rds"))
+  
+  write.csv(df, paste0(FilePath, "results_df_Foldall.csv"), row.names = FALSE)
+  
+  return(df)
+}
+```
+
+
+
+```{r}
+#Import C9ALS Result files
+
+#MostVariableFeatures
+VarFeatsC9ALS_1 <- read_csv("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/MostVariableFeatures/Parallel21-7/VariableFeaturesResultsC9ALS.csv")
+VarFeatsC9ALS_2 <- read_csv("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/MostVariableFeatures/Parallel23-7/VariableFeaturesResultsC9ALS.csv")
+
+#TopPCs
+TopPCsC9ALS_1 <- read_csv("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/TopPCs/Parallel21-7/C9ALSTopPCsResults.csv")
+TopPCsC9ALS_2 <- read_csv("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/TopPCs/Parallel23-7/C9ALSTopPCsResults.csv")
+
+#500randomfeatures
+randomfeat500C9ALS <- combine_folds("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/500randomfeatures/",
+                               from = 1, to = 36001, by = 500,
+                               "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/500randomfeatures/")
+
+#1000randomfeatures
+randomfeat1000C9ALS <- combine_folds("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/1000randomfeatures/",
+                               from = 1, to = 36001, by = 1000,
+                               "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/1000randomfeatures/")
+
+#2000randomfeatures
+randomfeat2000C9ALS <- combine_folds("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/2000randomfeatures/",
+                               from = 1, to = 36001, by = 2000,
+                               "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/2000randomfeatures/")
+
+#3000randomfeatures
+randomfeat3000C9ALS <- combine_folds("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/3000randomfeatures/",
+                               from = 1, to = 36001, by = 3000,
+                               "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/3000randomfeatures/")
+
+#DEWGCNA
+DEWGCNAC9ALS_1 <- combineDEWGCNAfiles("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/DEWGCNA/29-7/")
+DEWGCNAC9ALS_2 <- combineDEWGCNAfiles("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/C9ALS/DEWGCNA/30-7/")
+```
+
+```{r}
+#Import SALS Result files
+
+#MostVariableFeatures
+VarFeatsSALS_1 <- read_csv("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/MostVariableFeatures/14-8/VariableFeaturesResultsSALS.csv")
+VarFeatsSALS_2 <- read_csv("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/MostVariableFeatures/15-8/VariableFeaturesResultsSALS.csv")
+
+#TopPCs
+TopPCsSALS_1 <- read_csv("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/TopPCs/14-8/SALSTopPCsResults.csv")
+TopPCsSALS_2 <- read_csv("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/TopPCs/15-8/SALSTopPCsResults.csv")
+
+#500randomfeatures
+randomfeat500SALS <- combine_folds("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/500randomfeatures/",
+                               from = 1, to = 36001, by = 500,
+                               "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/500randomfeatures/")
+
+#1000randomfeatures
+randomfeat1000SALS <- combine_folds("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/1000randomfeatures/",
+                               from = 1, to = 35001, by = 1000,
+                               "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/1000randomfeatures/")
+
+#2000randomfeatures
+randomfeat2000SALS <- combine_folds("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/2000randomfeatures/",
+                               from = 1, to = 34001, by = 2000,
+                               "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/2000randomfeatures/")
+
+#3000randomfeatures
+randomfeat3000SALS <- combine_folds("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/3000randomfeatures/",
+                               from = 1, to = 33001, by = 3000,
+                               "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/3000randomfeatures/")
+
+#DEWGCNA
+DEWGCNASALS_1 <- combineDEWGCNAfiles("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/DEWGCNA/2-8/")
+DEWGCNASALS_2 <- combineDEWGCNAfiles("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/SALS/DEWGCNA/4-8/")
+```
+
+```{r}
+#Import Alzheimers Files
+
+#MostVariableFeatures
+VarFeatsAlzheim_1 <- read_csv("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/MostVariableFeatures/7-8/VariableFeaturesResultsAlzheimers.csv")
+VarFeatsAlzheim_2 <- read_csv("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/MostVariableFeatures/13-8/VariableFeaturesResultsAlzheimers.csv")
+
+#TopPCs
+TopPCsAlzheim_1 <- read_csv("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/TopPCs/12-8/AlzheimerTopPCsResults.csv")
+TopPCsAlzheim_2 <- read_csv("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/TopPCs/13-8/AlzheimerTopPCsResults.csv")
+
+#500randomfeatures
+randomfeat500Alzheim <- combine_folds("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/500randomfeatures/",
+                               from = 1, to = 36501, by = 500,
+                               "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/500randomfeatures/")
+
+#1000randomfeatures
+randomfeat1000Alzheim <- combine_folds("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/1000randomfeatures/",
+                               from = 1, to = 36001, by = 1000,
+                               "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/1000randomfeatures/")
+
+#2000randomfeatures
+randomfeat2000Alzheim <- combine_folds("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/2000randomfeatures/",
+                               from = 1, to = 34001, by = 2000,
+                               "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/2000randomfeatures/")
+
+#3000randomfeatures
+randomfeat3000Alzheim <- combine_folds("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/3000randomfeatures/",
+                               from = 1, to = 36001, by = 3000,
+                               "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/3000randomfeatures/")
+
+#DEWGCNA
+DEWGCNAAlzheim_1 <- combineDEWGCNAfiles("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/DEWGCNA/7-8/")
+DEWGCNAAlzheim_2 <- combineDEWGCNAfiles("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/AlzheimersFinal/DEWGCNA/12-8/")
+```
+
+```{r}
+colnames(DEWGCNAAlzheim_1)
+colnames(DEWGCNAC9ALS_1)
+colnames(DEWGCNASALS_1)
+print("randomfeatures")
+colnames(randomfeat1000Alzheim)
+colnames(randomfeat1000C9ALS)
+print("MostVariableFeatures")
+colnames(VarFeatsAlzheim_1)
+colnames(VarFeatsSALS_1)
+print("topPCs")
+colnames(TopPCsAlzheim_1)
+colnames(TopPCsC9ALS_2)
+```
+
+```{r}
+FixVarFeats_TopPCs <- function(df, Analysis){
+  n <- nrow(df)
+  # Determine the number of rows per fold
+  rows_per_fold <- ceiling(n / 5)
+  # Assign FoldNr values
+  df$FoldNumber <- rep(1:5, each = rows_per_fold, length.out = n)
+  df$Analysis <- Analysis
+  
+  df <- select(df, FoldNumber, Analysis, NumFeatures, Classifier, CellType, NrOfCells, everything())
+  
+  return(df)
+}
+
+VarFeatsAlzheim_1 <- FixVarFeats_TopPCs(VarFeatsAlzheim_1, "MostVariableFeatures")
+VarFeatsAlzheim_2 <- FixVarFeats_TopPCs(VarFeatsAlzheim_2, "MostVariableFeatures")
+
+VarFeatsC9ALS_1 <- FixVarFeats_TopPCs(VarFeatsC9ALS_1, "MostVariableFeatures")
+VarFeatsC9ALS_2 <- FixVarFeats_TopPCs(VarFeatsC9ALS_2, "MostVariableFeatures")
+
+VarFeatsSALS_1 <- FixVarFeats_TopPCs(VarFeatsSALS_1, "MostVariableFeatures")
+VarFeatsSALS_2 <- FixVarFeats_TopPCs(VarFeatsSALS_2, "MostVariableFeatures")
+
+TopPCsAlzheim_1 <- FixVarFeats_TopPCs(TopPCsAlzheim_1, "TopPCs")
+TopPCsAlzheim_2 <- FixVarFeats_TopPCs(TopPCsAlzheim_2, "TopPCs")
+
+TopPCsC9ALS_1 <- FixVarFeats_TopPCs(TopPCsC9ALS_1, "TopPCs")
+TopPCsC9ALS_2 <- FixVarFeats_TopPCs(TopPCsC9ALS_2, "TopPCs")
+
+TopPCsSALS_1 <- FixVarFeats_TopPCs(TopPCsSALS_1, "TopPCs")
+TopPCsSALS_2 <- FixVarFeats_TopPCs(TopPCsSALS_2, "TopPCs")
+```
+
+```{r}
+FixRandomFeats <- function(df, NumFeatures){
+  
+  Analysis <- paste0(NumFeatures,"RandomFeatures")
+  df$Analysis <- Analysis
+  df$NumFeatures <- NumFeatures
+  df <- rename(df, FoldNumber = FeatureRange)
+  df <- select(df, FoldNumber, Analysis, NumFeatures, Classifier, CellType, NrOfCells, everything())
+}
+
+randomfeat500Alzheim <- FixRandomFeats(randomfeat500Alzheim, 500)
+randomfeat500C9ALS <- FixRandomFeats(randomfeat500C9ALS, 500)
+randomfeat500SALS <- FixRandomFeats(randomfeat500SALS, 500)
+
+randomfeat1000Alzheim <- FixRandomFeats(randomfeat1000Alzheim, 1000)
+randomfeat1000C9ALS <- FixRandomFeats(randomfeat1000C9ALS, 1000)
+randomfeat1000SALS <- FixRandomFeats(randomfeat1000SALS, 1000)
+
+randomfeat2000Alzheim <- FixRandomFeats(randomfeat2000Alzheim, 2000)
+randomfeat2000C9ALS <- FixRandomFeats(randomfeat2000C9ALS, 2000)
+randomfeat2000SALS <- FixRandomFeats(randomfeat2000SALS, 2000)
+
+randomfeat3000Alzheim <- FixRandomFeats(randomfeat3000Alzheim, 3000)
+randomfeat3000C9ALS <- FixRandomFeats(randomfeat3000C9ALS, 3000)
+randomfeat3000SALS <- FixRandomFeats(randomfeat3000SALS, 3000)
+```
+
+```{r}
+FixDisease <- function(df, Disease){
+  
+  df$Disease <- Disease
+  
+  df <- select(df, Disease, everything())
+}
+
+DEWGCNAAlzheim_1 <- FixDisease(DEWGCNAAlzheim_1, "Alzheimers")
+DEWGCNAAlzheim_2 <- FixDisease(DEWGCNAAlzheim_2, "Alzheimers")
+randomfeat500Alzheim <- FixDisease(randomfeat500Alzheim, "Alzheimers")
+randomfeat1000Alzheim <- FixDisease(randomfeat1000Alzheim, "Alzheimers")
+randomfeat2000Alzheim <- FixDisease(randomfeat2000Alzheim, "Alzheimers")
+randomfeat3000Alzheim <- FixDisease(randomfeat3000Alzheim, "Alzheimers")
+VarFeatsAlzheim_1 <- FixDisease(VarFeatsAlzheim_1, "Alzheimers")
+VarFeatsAlzheim_2 <- FixDisease(VarFeatsAlzheim_2, "Alzheimers")
+TopPCsAlzheim_1 <- FixDisease(TopPCsAlzheim_1, "Alzheimers")
+TopPCsAlzheim_2 <- FixDisease(TopPCsAlzheim_2, "Alzheimers")
+
+DEWGCNAC9ALS_1 <- FixDisease(DEWGCNAC9ALS_1, "C9ALS")
+DEWGCNAC9ALS_2 <- FixDisease(DEWGCNAC9ALS_2, "C9ALS")
+randomfeat500C9ALS <- FixDisease(randomfeat500C9ALS, "C9ALS")
+randomfeat1000C9ALS <- FixDisease(randomfeat1000C9ALS, "C9ALS")
+randomfeat2000C9ALS <- FixDisease(randomfeat2000C9ALS, "C9ALS")
+randomfeat3000C9ALS <- FixDisease(randomfeat3000C9ALS, "C9ALS")
+VarFeatsC9ALS_1 <- FixDisease(VarFeatsC9ALS_1, "C9ALS")
+VarFeatsC9ALS_2 <- FixDisease(VarFeatsC9ALS_2, "C9ALS")
+TopPCsC9ALS_1 <- FixDisease(TopPCsC9ALS_1, "C9ALS")
+TopPCsC9ALS_2 <- FixDisease(TopPCsC9ALS_2, "C9ALS")
+
+DEWGCNASALS_1 <- FixDisease(DEWGCNASALS_1, "SALS")
+DEWGCNASALS_2 <- FixDisease(DEWGCNASALS_2, "SALS")
+randomfeat500SALS <- FixDisease(randomfeat500SALS, "SALS")
+randomfeat1000SALS <- FixDisease(randomfeat1000SALS, "SALS")
+randomfeat2000SALS <- FixDisease(randomfeat2000SALS, "SALS")
+randomfeat3000SALS <- FixDisease(randomfeat3000SALS, "SALS")
+VarFeatsSALS_1 <- FixDisease(VarFeatsSALS_1, "SALS")
+VarFeatsSALS_2 <- FixDisease(VarFeatsSALS_2, "SALS")
+TopPCsSALS_1 <- FixDisease(TopPCsSALS_1, "SALS")
+TopPCsSALS_2 <- FixDisease(TopPCsSALS_2, "SALS")
+```
+
+```{r}
+DEWGCNA_results <- rbind(DEWGCNAAlzheim_1, DEWGCNAAlzheim_2, DEWGCNAC9ALS_1, DEWGCNAC9ALS_2, DEWGCNASALS_1, DEWGCNASALS_2)
+MostVariableFeatures_results <- rbind(VarFeatsAlzheim_1, VarFeatsAlzheim_2, VarFeatsC9ALS_1, VarFeatsC9ALS_2, VarFeatsSALS_1, VarFeatsSALS_2)
+TopPCs_results <- rbind(TopPCsAlzheim_1, TopPCsAlzheim_2, TopPCsC9ALS_1, TopPCsC9ALS_2, TopPCsSALS_1, TopPCsSALS_2)
+random500features_results <- rbind(randomfeat500Alzheim, randomfeat500C9ALS, randomfeat500SALS)
+random1000features_results <- rbind(randomfeat1000Alzheim, randomfeat1000C9ALS, randomfeat1000SALS)
+random2000features_results <- rbind(randomfeat2000Alzheim, randomfeat2000C9ALS, randomfeat2000SALS)
+random3000features_results <- rbind(randomfeat3000Alzheim, randomfeat3000C9ALS, randomfeat3000SALS)
+randomfeatures_results <- rbind(random500features_results, random1000features_results, random2000features_results, random3000features_results)
+```
+
+```{r}
+Alzheimers_results <- rbind(DEWGCNAAlzheim_1, DEWGCNAAlzheim_2, randomfeat500Alzheim, randomfeat1000Alzheim, randomfeat2000Alzheim, randomfeat3000Alzheim, VarFeatsAlzheim_1, VarFeatsAlzheim_2, TopPCsAlzheim_1, TopPCsAlzheim_2)
+
+C9ALS_results <- rbind(DEWGCNAC9ALS_1, DEWGCNAC9ALS_2, randomfeat500C9ALS, randomfeat1000C9ALS, randomfeat2000C9ALS, randomfeat3000C9ALS, VarFeatsC9ALS_1, VarFeatsC9ALS_2, TopPCsC9ALS_1, TopPCsC9ALS_2)
+
+SALS_results <- rbind(DEWGCNASALS_1, DEWGCNASALS_2, randomfeat500SALS, randomfeat1000SALS, randomfeat2000SALS, randomfeat3000SALS, VarFeatsSALS_1, VarFeatsSALS_2, TopPCsSALS_1, TopPCsSALS_2)
+```
+
+```{r}
+All_results <- rbind(Alzheimers_results, C9ALS_results, SALS_results)
+```
+
+```{r}
+folder_path <- "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ResultFiles/"
+
+saveRDS(DEWGCNA_results, file = paste0(folder_path, "DEWGCNA_results.rds"))
+saveRDS(MostVariableFeatures_results, file = paste0(folder_path, "MostVariableFeatures_results.rds"))
+saveRDS(TopPCs_results, file = paste0(folder_path, "TopPCs_results.rds"))
+saveRDS(random500features_results, file = paste0(folder_path, "500randomfeatures_results.rds"))
+saveRDS(random1000features_results, file = paste0(folder_path, "1000randomfeatures_results.rds"))
+saveRDS(random2000features_results, file = paste0(folder_path, "2000randomfeatures_results.rds"))
+saveRDS(random3000features_results, file = paste0(folder_path, "3000randomfeatures_results.rds"))
+saveRDS(randomfeatures_results, file = paste0(folder_path, "randomfeatures_results.rds"))
+saveRDS(Alzheimers_results, file = paste0(folder_path, "Alzheimers_results.rds"))
+saveRDS(C9ALS_results, file = paste0(folder_path, "C9ALS_results.rds"))
+saveRDS(SALS_results, file = paste0(folder_path, "SALS_results.rds"))
+saveRDS(All_results, file = paste0(folder_path, "All_results.rds"))
+
+
+write.csv(DEWGCNA_results, file = paste0(folder_path, "DEWGCNA_results.csv"), row.names = FALSE)
+write.csv(MostVariableFeatures_results, file = paste0(folder_path, "MostVariableFeatures_results.csv"), row.names = FALSE)
+write.csv(TopPCs_results, file = paste0(folder_path, "TopPCs_results.csv"), row.names = FALSE)
+write.csv(random500features_results, file = paste0(folder_path, "500randomfeatures_results.csv"), row.names = FALSE)
+write.csv(random1000features_results, file = paste0(folder_path, "1000randomfeatures_results.csv"), row.names = FALSE)
+write.csv(random2000features_results, file = paste0(folder_path, "2000randomfeatures_results.csv"), row.names = FALSE)
+write.csv(random3000features_results, file = paste0(folder_path, "3000randomfeatures_results.csv"), row.names = FALSE)
+write.csv(randomfeatures_results, file = paste0(folder_path, "randomfeatures_results.csv"), row.names = FALSE)
+write.csv(Alzheimers_results, file = paste0(folder_path, "Alzheimers_results.csv"), row.names = FALSE)
+write.csv(C9ALS_results, file = paste0(folder_path, "C9ALS_results.csv"), row.names = FALSE)
+write.csv(SALS_results, file = paste0(folder_path, "SALS_results.csv"), row.names = FALSE)
+write.csv(All_results, file = paste0(folder_path, "All_results.csv"), row.names = FALSE)
+```
+
