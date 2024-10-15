@@ -1,3 +1,4 @@
+# Load necessary libraries
 library(caret)
 library(dplyr)
 library(magrittr)
@@ -9,6 +10,7 @@ library(Seurat)
 # ============================
 # Update these paths as needed to configure the script
 config <- list(
+  Disease = "C9ALS",
   PathToScriptsFolder = "/hpc/hers_en/rballieux/AlzheimersProofConcept/Classifiers/Scripts/", # Folder containing helper scripts
   PathToDataset = "/hpc/hers_en/rballieux/ALS_FTLD/Data/C9ALS_Seurat_Downsampled.rds",  # Path to the Seurat dataset
   chunk_size = 500,                                                                     # Number of features to process per chunk
@@ -94,14 +96,18 @@ for (start_index in seq(start, total_features, by = config$chunk_size)) {
   results <- train_classifier(TrainData, TestData, Testmetadata, "all", PerCelltype = TRUE, foldNr = i, Analysis = Analysis, 
                               preloaded_models = NULL, ROCoutput_dir = paste0(config$OutputFolder, "ROCplots/"))
   
-  # Annotate results with the feature range
-  results$FeatureRange <- paste0(start_index, "-", end_index)
+  results$Disease <- Disease
+  results$FoldNumber <- paste0(start_index, "-", end_index)
+  results$NumFeatures <- config$chunk_size
+  results$Analysis <- "500RandomFeatures"
+  
+  results <- select(results, Disease, FoldNumber, Analysis, NumFeatures, Classifier, CellType, NrOfCells, everything())
   
   # Display the results for the current chunk for logfile
   print(results)
   
   # Save intermediate results to the specified output directory
-  save_objects(results, fold_number = start_index, path_prefix = config$OutputFolder)
+  save_objects(train_barcodes, test_barcodes, results, fold_number = start_index, path_prefix = config$OutputFolder)
   
   # Append the current results to the cumulative all_results data frame
   all_results <- rbind(all_results, results)
@@ -110,5 +116,8 @@ for (start_index in seq(start, total_features, by = config$chunk_size)) {
 # ============================
 # Exporting Final Results
 # ============================
+# Save the combined results to the specified output folder
+save_objects(all_results, fold_number = "all", path_prefix = config$OutputFolder)
+
 # Export all accumulated results to a CSV file in the designated output folder
-write.csv(all_results, paste0(config$OutputFolder, "ClassifierResults500randomfeats.csv"), row.names = FALSE)
+write.csv(all_results, paste0(config$OutputFolder, Disease, "ClassifierResults500randomfeats.csv"), row.names = FALSE)

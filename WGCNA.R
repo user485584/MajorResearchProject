@@ -3,7 +3,7 @@ library(magrittr)
 library(dplyr)
 library(DESeq2)
 
-perform_wgcna <- function(counts, metadata, disease, includeCorrelation = FALSE, power = NULL){
+perform_wgcna <- function(counts, metadata, includeCorrelation = FALSE, power = NULL){
   
   t_counts <- t(counts)
   
@@ -67,7 +67,7 @@ perform_wgcna <- function(counts, metadata, disease, includeCorrelation = FALSE,
   
   #preparation for follow-up steps
   traits <- metadata %>% 
-    mutate(Disease = ifelse(grepl(disease, Status), 1, 0)) %>% 
+    mutate(Disease = ifelse(grepl("ALS|AD", Status), 1, 0)) %>% 
     select(Disease)
   
   nSamples <- nrow(norm.counts)
