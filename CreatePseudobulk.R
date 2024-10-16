@@ -2,9 +2,9 @@
 library(Seurat)
 library(dplyr)
 
-  # ----------------------------
-  # Function: CreatePseudobulk
-  # ----------------------------
+# ----------------------------
+# Function: CreatePseudobulk
+# ----------------------------
 
 #' Create Pseudobulk Expression Data from Seurat Subset
 #'
