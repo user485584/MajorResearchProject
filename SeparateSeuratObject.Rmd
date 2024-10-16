@@ -1,0 +1,89 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(Seurat)
+library(magrittr)
+library(dplyr)
+```
+
+
+```{r}
+SeuratObject <- readRDS("/hpc/hers_en/rballieux/ALSData/Manolis_pubished_seuratObject_motorCortex_geneNames_annotated_joinedLayers.rds")
+```
+
+```{r}
+metadata <- SeuratObject@meta.data %>%
+  dplyr::rename(
+    id = Donor,
+    subs = full_label,
+    predicted.id = CellType,
+    Status = Condition
+  )
+
+SeuratObject@meta.data <- metadata
+```
+
+```{r}
+ALS_Seurat <- subset(SeuratObject, subset = Status %in% c("ALS", "PN"))
+FTLD_Seurat <- subset(SeuratObject, subset = Status %in% c("FTLD", "PN"))
+```
+
+```{r}
+saveRDS(ALS_Seurat, "/hpc/hers_en/rballieux/ALSData/ALS_Seurat.rds")
+saveRDS(FTLD_Seurat, "/hpc/hers_en/rballieux/ALSData/FTLD_Seurat.rds")
+```
+
+
+
+```{r}
+SeuratObject <- readRDS("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/Data/ALS_Seurat.rds")
+```
+```{r}
+SALS_Seurat <- subset(SeuratObject, subset = Group %in% c("SALS", "PN"))
+```
+
+```{r}
+PBC9ALS_Seurat <- CreatePseudobulk(C9ALS_Seurat, metadata)
+```
+
+```{r}
+saveRDS(C9ALS_Seurat, "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/Data/C9ALS_Seurat.rds")
+```
+
+```{r}
+metadata <- SALS_Seurat@meta.data
+PBSALS_Seurat <- CreatePseudobulk(SALS_Seurat, metadata)
+```
+
+
+```{r}
+PBcounts <- PBSALS_Seurat$pseudobulk_df
+PBmetadata <- PBSALS_Seurat$pseudobulk_metadata
+```
+
+```{r}
+htree <- hclust(dist(t(PBcounts)), method = "average")
+plot(htree)
+```
+```{r}
+PBmetadata
+```
+
+```{r}
+table(metadata$Status)
+```
+
+
+```{r}
+cells_to_keep <- rownames(SALS_Seurat@meta.data)[!(SALS_Seurat@meta.data$id %in% c(110, 117, 102, 104, 122))]
+SALS_SeuratDownSampled <- subset(SALS_Seurat, cells = cells_to_keep)
+```
+
+
+```{r}
+sALS_Seurat <- subset(SeuratObject, subset = Group %in% c("SALS", "PN"))
+```
+

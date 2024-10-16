@@ -2110,6 +2110,23 @@ gt_tbl <- gt_tbl %>%
 gtsave(gt_tbl, "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/RandomFeatures_table2.png", vwidth = 1000)
 ```
 
+```{r}
+summary_by_NrRandomFeaturesClassifier <- all_results_allcelltypes %>%
+  filter(Analysis %in% desired_order) %>%
+  mutate(Analysis = factor(Analysis, levels = desired_order)) %>%
+  subset(!FoldNumber %in% c("36001-36601", "36001-36494")) %>%
+  group_by(Analysis, Classifier) %>%
+  summarise(
+    mean_TestAUC = mean(TestAUC, na.rm = TRUE),
+    median_TestAUC = median(TestAUC, na.rm = TRUE),
+    min_TestAUC = min(TestAUC, na.rm = TRUE),
+    max_TestAUC = max(TestAUC, na.rm = TRUE),
+    spread = max_TestAUC  - min_TestAUC
+  )
+
+print(summary_by_NrRandomFeaturesClassifier)
+```
+
 
 ```{r}
 slope_intercept_RandomFeatures <- get_slope_intercept_summary(filtered_data, plot = TRUE, combined = TRUE, plot_stats = TRUE)
