@@ -1,63 +1,87 @@
+# Load Necessary Libraries
 library(Seurat)
 
-# Define a function to process a Seurat object for specified features and return a data frame
+# ----------------------------
+# Function: prepare_df_classifier
+# ----------------------------
+
+#' Prepare Data Frame for Classification from Seurat Object
+#'
+#' This function processes a Seurat object by subsetting it based on specified features,
+#' extracting the count data, and preparing a data frame suitable for classification tasks.
+#' It also adds a binary 'Status' column indicating disease presence.
+#'
+#' @param SeuratObject A Seurat object containing single-cell RNA sequencing data.
+#' @param features A character vector of gene names or identifiers to subset the Seurat object.
+#'
+#' @return A data frame where rows represent cells, columns represent gene expression levels,
+#'         and an additional 'Status' column indicating disease status (1 for disease, 0 for healthy).
 prepare_df_classifier <- function(SeuratObject, features) {
-  # Subset Seurat object based on combined features
+  
+  # ----------------------------
+  # Step 1: Input Validation
+  # ----------------------------
+  
+  # Check if SeuratObject is a valid Seurat object
+  if (!inherits(SeuratObject, "Seurat")) {
+    stop("Error: SeuratObject must be a valid Seurat object.")
+  }
+  
+  # Check if 'Status' column exists in metadata
+  if (!"Status" %in% colnames(SeuratObject@meta.data)) {
+    stop("Error: SeuratObject metadata must contain a 'Status' column.")
+  }
+  
+  # Check if specified features exist in the Seurat object
+  missing_features <- setdiff(features, rownames(SeuratObject))
+  if (length(missing_features) > 0) {
+    warning("Warning: The following features are not present in the Seurat object and will be ignored: ",
+            paste(missing_features, collapse = ", "))
+    # Remove missing features from the list
+    features <- setdiff(features, missing_features)
+  }
+  
+  # Check if there are any features left after removing missing ones
+  if (length(features) == 0) {
+    stop("Error: No valid features provided for subsetting.")
+  }
+  
+  
+  # ----------------------------
+  # Step 2: Subset Seurat Object
+  # ----------------------------
+  # Subset the Seurat object to include only the specified features (genes)
   SubsetData <- SeuratObject[features, ]
   
-  # Get the count data from the subset
+  # ----------------------------
+  # Step 3: Extract Count Data
+  # ----------------------------
+  # Retrieve the count data from the subsetted Seurat object
   data_matrix <- GetAssayData(object = SubsetData, layer = "counts")
   
+  # Convert sparse matrix to a dense matrix and transpose it (cells as rows, genes as columns)
   dense_matrix <- as.matrix(data_matrix)
   transposed_dense_matrix <- t(dense_matrix)
+  
+  # Convert the transposed matrix to a data frame
   df <- as.data.frame(transposed_dense_matrix)
   
+  # ----------------------------
+  # Step 4: Add 'Status' Column
+  # ----------------------------
   # Add the 'Status' column from metadata
   df$Status <- SubsetData@meta.data$Status
   
+  # Convert 'Status' to a binary indicator: 1 for disease (AD, ALS, FTLD), 0 for healthy
+  # Adjust the disease labels as necessary based on your specific dataset
   df$Status <- ifelse(df$Status %in% c("AD", "ALS", "FTLD"), 1, 0)
   
-  
+  # ----------------------------
+  # Step 5: Return Prepared Data Frame
+  # ----------------------------
   return(df)
 }
 
 
 
-prepareGRN_df_classifier <- function(SeuratObject, features, target = "separate") {
-  
-  
-  SubsetData <- SeuratObject[features, ]
-  
-  data_matrix <- GetAssayData(object = SubsetData, layer = "counts")
-  
-  dense_matrix <- as.matrix(data_matrix)
-  transposed_dense_matrix <- t(dense_matrix)
-  df <- as.data.frame(transposed_dense_matrix)
-  
-  if (target == "interaction") {
-    df <- df + 1
-    
-    for (i in 1:nrow(featuresdf)) {
-      tf_col <- featuresdf$TF.ENSEMBL[i]
-      gene_col <- featuresdf$gene.ENSEMBL[i]
-      
-      # Check if both columns exist in df
-      if (gene_col %in% colnames(df) && tf_col %in% colnames(df)) {
-        # Create a new column name based on TF and GeneID
-        new_col_name <- paste(featuresdf$TF.name[i], gene_col, tf_col, sep="_")
-        
-        # Multiply the corresponding columns in df
-        df[[new_col_name]] <- df[[gene_col]] * df[[tf_col]]
-      }
-    }
-    
-    df <- df[, (length(features) + 1) : ncol(df)]
-  }
-  
-  # Add the Status column
-  df$Status <- SubsetData@meta.data$Status
-  df$Status <- ifelse(df$Status == "AD", 1, 0)
-  
-  return(df)
 
-}
