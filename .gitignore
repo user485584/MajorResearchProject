@@ -1,0 +1,29 @@
+# Ignore all files ending with .nb.html
+*.nb.html
+
+# ----------------------------
+# R Environment Files
+# ----------------------------
+.Rhistory
+.RData
+.Ruserdata
+
+# ----------------------------
+# RStudio Project Files
+# ----------------------------
+.Rproj.user/
+.Rproj.user
+
+# ----------------------------
+# Temporary Files
+# ----------------------------
+*.tmp
+*.swp
+*.bak
+*.log
+
+# ----------------------------
+# OS-Specific Files
+# ----------------------------
+# macOS
+.DS_Store
