@@ -11,10 +11,12 @@ library(dplyr)
 
 
 ```{r}
+# Load the main Seurat object containing all samples
 SeuratObject <- readRDS("/hpc/hers_en/rballieux/ALSData/Manolis_pubished_seuratObject_motorCortex_geneNames_annotated_joinedLayers.rds")
 ```
 
 ```{r}
+# Rename specific columns in the metadata to align with Alzheimer's dataset
 metadata <- SeuratObject@meta.data %>%
   dplyr::rename(
     id = Donor,
@@ -23,11 +25,15 @@ metadata <- SeuratObject@meta.data %>%
     Status = Condition
   )
 
+# Update the Seurat object's metadata with the renamed columns
 SeuratObject@meta.data <- metadata
 ```
 
 ```{r}
+# Subset the Seurat object to include only ALS and PN (Control) samples
 ALS_Seurat <- subset(SeuratObject, subset = Status %in% c("ALS", "PN"))
+
+# Subset the Seurat object to include only FTLD and PN (Control) samples
 FTLD_Seurat <- subset(SeuratObject, subset = Status %in% c("FTLD", "PN"))
 ```
 
@@ -39,51 +45,108 @@ saveRDS(FTLD_Seurat, "/hpc/hers_en/rballieux/ALSData/FTLD_Seurat.rds")
 
 
 ```{r}
+source("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/GitHubRepo/MajorResearchProject/CreatePseudobulk.R")
+
+# Load the previously saved ALS Seurat object (after transferring to local machine) for further analysis
 SeuratObject <- readRDS("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/Data/ALS_Seurat.rds")
 ```
+
 ```{r}
+#Subset the ALS Seurat object to include only SALS and PN (Control) samples
 SALS_Seurat <- subset(SeuratObject, subset = Group %in% c("SALS", "PN"))
-```
 
-```{r}
-PBC9ALS_Seurat <- CreatePseudobulk(C9ALS_Seurat, metadata)
-```
+saveRDS(SALS_Seurat, "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/Data/SALS_Seurat.rds")
 
-```{r}
+# Subset the ALS Seurat object to include only C9ALS and PN (Control) samples
+C9ALS_Seurat <- subset(SeuratObject, subset = Group %in% c("C9ALS", "PN"))
+
 saveRDS(C9ALS_Seurat, "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/Data/C9ALS_Seurat.rds")
 ```
 
 ```{r}
-metadata <- SALS_Seurat@meta.data
-PBSALS_Seurat <- CreatePseudobulk(SALS_Seurat, metadata)
+# Create a pseudobulk object for C9ALS using the custom function CreatePseudobulk
+metadata_C9ALS <- C9ALS_Seurat@meta.data
+PBC9ALS_Seurat <- CreatePseudobulk(C9ALS_Seurat, metadata_C9ALS)
+
+# Extract pseudobulk counts and metadata from the C9ALS pseudobulk object
+PBcounts_C9ALS <- PBC9ALS_Seurat$pseudobulk_df
+PBmetadata_C9ALS <- PBC9ALS_Seurat$pseudobulk_metadata
+```
+
+```{r}
+# Create a pseudobulk object for SALS using the custom function CreatePseudobulk
+metadata_SALS <- SALS_Seurat@meta.data
+PBSALS_Seurat <- CreatePseudobulk(SALS_Seurat, metadata_SALS)
+
+# Extract pseudobulk counts and metadata from the SALS pseudobulk object
+PBcounts_SALS <- PBSALS_Seurat$pseudobulk_df
+PBmetadata_SALS <- PBSALS_Seurat$pseudobulk_metadata
 ```
 
 
 ```{r}
-PBcounts <- PBSALS_Seurat$pseudobulk_df
-PBmetadata <- PBSALS_Seurat$pseudobulk_metadata
-```
+# Perform hierarchical clustering on the pseudobulk counts to identify outlier samples
+# Transpose PBcounts_SALS to cluster samples (columns) instead of genes (rows)
+htree <- hclust(dist(t(PBcounts_SALS)), method = "average")
 
-```{r}
-htree <- hclust(dist(t(PBcounts)), method = "average")
+# Plot the dendrogram to visually inspect for outliers
 plot(htree)
 ```
-```{r}
-PBmetadata
-```
 
 ```{r}
-table(metadata$Status)
-```
+# Display the pseudobulk metadata for SALS
+print(PBmetadata_SALS)
 
-
-```{r}
-cells_to_keep <- rownames(SALS_Seurat@meta.data)[!(SALS_Seurat@meta.data$id %in% c(110, 117, 102, 104, 122))]
-SALS_SeuratDownSampled <- subset(SALS_Seurat, cells = cells_to_keep)
+# Create a frequency table of the Status to check the distribution of Control vs. SALS samples
+table(metadata_SALS$Status)
 ```
 
 
 ```{r}
-sALS_Seurat <- subset(SeuratObject, subset = Group %in% c("SALS", "PN"))
+# Define the sample IDs to remove from SALS based on hierarchical clustering and visual inspection
+samples_to_remove_SALS <- c(110, 117, 102, 104, 122)
+
+# Identify cells (or samples) to keep by excluding the specified outlier sample IDs
+cells_to_keep_SALS <- rownames(SALS_Seurat@meta.data)[!(SALS_Seurat@meta.data$id %in% samples_to_remove_SALS)]
+
+# Subset the SALS Seurat object to retain only the desired cells/samples
+SALS_SeuratDownSampled <- subset(SALS_Seurat, cells = cells_to_keep_SALS)
+
+# Save the downsampled SALS Seurat object to a specified path
+saveRDS(SALS_SeuratDownSampled, "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/Data/SALS_SeuratDownsampled.rds")
 ```
+
+```{r}
+# Perform hierarchical clustering on the pseudobulk counts to identify outlier samples
+# Transpose PBcounts_SALS to cluster samples (columns) instead of genes (rows)
+htree <- hclust(dist(t(PBcounts_C9ALS)), method = "average")
+
+# Plot the dendrogram to visually inspect for outliers
+plot(htree)
+```
+
+```{r}
+# Display the pseudobulk metadata for SALS
+print(PBmetadata_C9ALS)
+
+# Create a frequency table of the Status to check the distribution of Control vs. SALS samples
+table(metadata_C9ALS$Status)
+```
+
+```{r}
+# Define the sample IDs to remove from C9ALS based on hierarchical clustering and visual inspection
+samples_to_remove_C9ALS <- c(131, 132, 133, 138)
+
+# Identify cells (or samples) to keep by excluding the specified outlier sample IDs
+cells_to_keep_C9ALS <- rownames(C9ALS_Seurat@meta.data)[!(C9ALS_Seurat@meta.data$id %in% samples_to_remove_C9ALS)]
+
+# Subset the C9ALS Seurat object to retain only the desired cells/samples
+C9ALS_SeuratDownSampled <- subset(C9ALS_Seurat, cells = cells_to_keep_C9ALS)
+
+# Save the downsampled C9ALS Seurat object to a specified path
+saveRDS(C9ALS_SeuratDownSampled, "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/ALS_FTLD/Data/C9ALS_Seurat_Downsampled.rds")
+```
+
+
+
 
