@@ -6,12 +6,19 @@ output: html_notebook
 
 
 ```{r}
+# Load Necessary Libraries
 library(tidyverse)
+library(magrittr)
+library(dplyr)
+
+# Source the CombineFolds script
 source("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Classifiers/Scripts/CombineFolds.R")
 ```
 
 ```{r}
-#Import C9ALS files
+# ----------------------------
+# Import C9ALS Files
+# ----------------------------
 
 #500randomfeatures
 importances500C9ALS <- combine_folds_coef_importances(Disease = "C9ALS", Analysis = "500randomfeatures",
@@ -103,7 +110,9 @@ glm_importancesDEWGCNAC9ALS_2 <- importancesDEWGCNAC9ALS_2$combined_coef
 
 
 ```{r}
-#Import SALS files
+# ----------------------------
+# Import SALS Files
+# ----------------------------
 
 #500randomfeatures
 importances500SALS <- combine_folds_coef_importances(Disease = "SALS", Analysis = "500randomfeatures",
@@ -195,7 +204,9 @@ glm_importancesDEWGCNASALS_2 <- importancesDEWGCNASALS_2$combined_coef
 
 
 ```{r}
-#Import Alzheimer files
+# ----------------------------
+# Import Alzheimer Files
+# ----------------------------
 
 #500randomfeatures
 importances500Alzheimers <- combine_folds_coef_importances(Disease = "Alzheimers", Analysis = "500randomfeatures",
@@ -286,6 +297,10 @@ glm_importancesDEWGCNAAlzheimers_2 <- importancesDEWGCNAAlzheimers_2$combined_co
 ```
 
 ```{r}
+# ----------------------------
+# Combine Importances for Each Analysis
+# ----------------------------
+
 DEWGCNA_rf_importances <- rbind(rf_importancesDEWGCNAAlzheimers_1, rf_importancesDEWGCNAAlzheimers_2, rf_importancesDEWGCNAC9ALS_1, rf_importancesDEWGCNAC9ALS_2, rf_importancesDEWGCNASALS_1, rf_importancesDEWGCNASALS_2)
 DEWGCNA_glm_importances <- rbind(glm_importancesDEWGCNAAlzheimers_1, glm_importancesDEWGCNAAlzheimers_2, glm_importancesDEWGCNAC9ALS_1, glm_importancesDEWGCNAC9ALS_2, glm_importancesDEWGCNASALS_1, glm_importancesDEWGCNASALS_2)
 DEWGCNA_importances <- rbind(DEWGCNA_rf_importances, DEWGCNA_glm_importances)
@@ -320,6 +335,10 @@ randomfeatures_importances <- rbind(random500features_importances, random1000fea
 ```
 
 ```{r}
+# ----------------------------
+# Combine Importances for Each Disease
+# ----------------------------
+
 Alzheimers_rf_importances <- rbind(rf_importancesDEWGCNAAlzheimers_1, rf_importancesDEWGCNAAlzheimers_2, rf_importances500Alzheimers, rf_importances1000Alzheimers, rf_importances2000Alzheimers, rf_importances3000Alzheimers, rf_importancesVarFeatsAlzheimers_1, rf_importancesVarFeatsAlzheimers_2, rf_importancesTopPCsAlzheimers_1, rf_importancesTopPCsAlzheimers_2)
 Alzheimers_glm_importances <- rbind(glm_importancesDEWGCNAAlzheimers_1, glm_importancesDEWGCNAAlzheimers_2, glm_importances500Alzheimers, glm_importances1000Alzheimers, glm_importances2000Alzheimers, glm_importances3000Alzheimers, glm_importancesVarFeatsAlzheimers_1, glm_importancesVarFeatsAlzheimers_2, glm_importancesTopPCsAlzheimers_1, glm_importancesTopPCsAlzheimers_2)
 Alzheimers_importances <- rbind(Alzheimers_rf_importances, Alzheimers_glm_importances)
@@ -334,6 +353,10 @@ SALS_importances <- rbind(SALS_rf_importances, SALS_glm_importances)
 ```
 
 ```{r}
+# ----------------------------
+# Combine All Importances Together
+# ----------------------------
+
 All_rf_importances <- rbind(Alzheimers_rf_importances, C9ALS_rf_importances, SALS_rf_importances)
 All_glm_importances <- rbind(Alzheimers_glm_importances, C9ALS_glm_importances, SALS_glm_importances)
 All_importances <- rbind(All_rf_importances, All_glm_importances)
@@ -341,6 +364,10 @@ All_importances <- rbind(All_rf_importances, All_glm_importances)
 
 
 ```{r}
+# ----------------------------
+# Save Combined Importances as RDS and CSV Files
+# ----------------------------
+
 folder_path <- "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ResultFiles/Importances/"
 
 # Save RDS files for rf_importances
@@ -432,30 +459,37 @@ write.csv(All_importances, file = paste0(folder_path, "All_importances.csv"), ro
 
 
 ```{r}
+# ----------------------------
+# Import and Map Gene Symbols
+# ----------------------------
 library(biomaRt)
+
+# Read the combined importances CSV file
 all_importances <- read_csv("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ResultFiles/Importances/All_importances.csv")
 
 
-# Use the Ensembl BioMart database
+# Use the Ensembl BioMart database for gene annotation
 ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
 
-# Retrieve mapping from Ensembl to Entrez IDs
+# Retrieve mapping from Ensembl to Gene Symbol
 ensembl_to_symbol <- getBM(
   attributes = c("ensembl_gene_id", "hgnc_symbol"),
   mart = ensembl
 )
 
+# Rename columns for clarity and remove duplicate mappings
 ensembl_to_symbol <- ensembl_to_symbol %>%
   dplyr::rename(EnsemblID = ensembl_gene_id, GeneSymbol = hgnc_symbol) %>%
   distinct(EnsemblID, GeneSymbol)
 
-
+# Filter out empty or NA gene symbols and keep only the first occurrence of each GeneSymbol
 reduced_ensembl_to_symbol <- ensembl_to_symbol %>%
   filter(GeneSymbol != "" & !is.na(GeneSymbol)) %>%
   group_by(GeneSymbol) %>%
   dplyr::slice(1) %>%  # Keep only the first occurrence of each GeneSymbol
   ungroup()
 
+# Add EnsemblID and GeneSymbol to all_importances based on Disease type
 all_importances <- all_importances %>%
   mutate(
     EnsemblID = ifelse(Disease == "Alzheimers", gene, NA_character_),  # EnsemblID for Alzheimers
@@ -475,56 +509,68 @@ all_importances <- all_importances %>%
 ```
 
 ```{r}
+# ----------------------------
+# Check for Missing Gene Symbols and Ensembl IDs
+# ----------------------------
 table(all_importances$GeneSymbol %in% c("",NA))
 table(all_importances$EnsemblID %in% c("",NA))
 ```
 
 ```{r}
-library(org.Hs.eg.db)
+# ----------------------------
+# Further Gene Mapping with org.Hs.eg.db
+# ----------------------------
+library(org.Hs.eg.db) # For additional gene annotations
 
-# Retrieve mappings between Ensembl IDs, Gene Symbols, and Entrez IDs
+# Retrieve mappings between Ensembl IDs, Gene Symbols, and Gene Names
 additional_mapping <- AnnotationDbi::select(org.Hs.eg.db, 
                              keys = keys(org.Hs.eg.db, keytype = "ENSEMBL"), 
                              columns = c("ENSEMBL", "SYMBOL", "GENENAME"), 
                              keytype = "ENSEMBL")
 
+# Rename columns for clarity and remove duplicate mappings
 additional_mapping <- additional_mapping %>%
-  distinct(ENSEMBL, SYMBOL) %>%
-  filter(!is.na(SYMBOL))
+  dplyr::rename(EnsemblID = ENSEMBL, GeneSymbol = SYMBOL) %>%
+  distinct(EnsemblID, GeneSymbol) %>%
+  filter(!is.na(GeneSymbol))  # Remove entries with NA GeneSymbol
 
-# Rename the columns for easier joining
-additional_mapping <- additional_mapping %>%
-  dplyr::rename(EnsemblID = ENSEMBL, GeneSymbol = SYMBOL)
-
+# Keep only the first occurrence for each GeneSymbol to avoid duplicates
 additional_mapping <- additional_mapping %>%
   filter(GeneSymbol != "" & !is.na(GeneSymbol)) %>%
   distinct(GeneSymbol, .keep_all = TRUE)
 
+# Select unique EnsemblID to GeneSymbol mappings
 uniqueEnsID_mapping <- additional_mapping %>%
   group_by(EnsemblID) %>%
   slice(1) %>%  # Select the first occurrence for each EnsemblID
   ungroup()
 
-
+# Merge the additional mapping with all_importances to fill missing GeneSymbols
 merged_df <- all_importances %>%
   left_join(uniqueEnsID_mapping, by = "EnsemblID", suffix = c("", ".map"))
 
+# Update GeneSymbol in all_importances where missing
 all_importances$GeneSymbol <- ifelse(is.na(all_importances$GeneSymbol) | all_importances$GeneSymbol == "", 
                                      merged_df$GeneSymbol.map, 
                                      all_importances$GeneSymbol)
 
 
 
-
+# Merge again to fill missing EnsemblIDs based on GeneSymbol
 merged_df <- all_importances %>%
   left_join(additional_mapping, by = "GeneSymbol", suffix = c("", ".map"))
 
+# Update EnsemblID in all_importances where missing
 all_importances$EnsemblID <- ifelse(is.na(all_importances$EnsemblID) | all_importances$EnsemblID == "", 
                                     merged_df$EnsemblID.map, 
                                     all_importances$EnsemblID)
 ```
 
 ```{r}
+# ----------------------------
+# Assign Run Numbers Based on Unique Combinations
+# ----------------------------
+# Initialize a dataframe to store unique combinations and their first occurrence
 combination_df <- data.frame(
   Disease = character(),
   Analysis = character(),
@@ -568,6 +614,10 @@ for (i in seq_len(nrow(all_importances))) {
 ```
 
 ```{r}
+# ----------------------------
+# Assign Run Numbers to all_importances
+# ----------------------------
+# Initialize the 'Run' column with NA
 all_importances$Run <- NA
 
 # Initialize a dataframe to keep track of seen combinations
@@ -618,6 +668,9 @@ for (i in seq_len(nrow(combination_df))) {
 
 
 ```{r}
+# ----------------------------
+# Calculate Relative Absolute Importance
+# ----------------------------
 grouped_df <- all_importances %>%
   group_by(Disease, Analysis, Fold, Classifier, Run) %>%
   summarise(total_absimportance = sum(absimportance, na.rm = TRUE), .groups = 'drop')
@@ -628,17 +681,12 @@ all_importances <- all_importances %>%
 ```
 
 
-```{r}
-reduced_importances <- all_importances %>%
-  group_by(Disease, Analysis, Fold, Classifier, Run) %>%
-  arrange(desc(absimportance)) %>%  # Arrange in descending order of absimportance
-  slice_head(n = 50) %>%  # Take the top 50 genes per group
-  ungroup()  # Ungroup the data frame
-```
 
 ```{r}
+# ----------------------------
+# Save All Importances as CSV File
+# ----------------------------
 folder_path <- "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ResultFiles/Importances/"
 write.csv(all_importances, file = paste0(folder_path, "All_importances.csv"), row.names = FALSE)
-write.csv(reduced_importances, file = paste0(folder_path, "Reduced_importances.csv"), row.names = FALSE)
 ```
 
