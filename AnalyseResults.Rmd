@@ -452,13 +452,11 @@ ggsave("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigur
 performance_metrics <- filtered_data %>%
   group_by(NumFeatures, Classifier) %>%
   summarise(
-    Mean_TestAUC = mean(TestAUC),
     Median_TestAUC = median(TestAUC),
-    Max_TestAUC = max(TestAUC),
     Min_TestAUC = min(TestAUC),
+    Max_TestAUC = max(TestAUC),
     Spread = max(TestAUC) - min(TestAUC)
-  )
-head(performance_metrics, n = 12)
+  ) %>% ungroup()
 ```
 
 ```{r}
@@ -476,17 +474,16 @@ performance_table <- performance_metrics %>%
   ) %>%
   # Format numeric columns to display three decimal places
   fmt_number(
-    columns = vars(Mean_TestAUC, Median_TestAUC, Max_TestAUC, Min_TestAUC, Spread),
+    columns = vars(Median_TestAUC, Max_TestAUC, Min_TestAUC, Spread),
     decimals = 3
   ) %>%
   # Rename columns for clarity
   cols_label(
-    NumFeatures = "Number of Features",
+    NumFeatures = "Number of PCs",
     Classifier = "Classifier",
-    Mean_TestAUC = "Mean Test AUC",
     Median_TestAUC = "Median Test AUC",
-    Max_TestAUC = "Max Test AUC",
     Min_TestAUC = "Min Test AUC",
+    Max_TestAUC = "Max Test AUC",
     Spread = "AUC Spread"
   ) %>%
   # Bold the column labels
@@ -499,7 +496,7 @@ performance_table <- performance_metrics %>%
     table.font.size = 16,  # Increased from 12 to 16
     heading.title.font.size = 18,  # Increased from 14 to 18
     heading.subtitle.font.size = 16,  # Increased from 12 to 16
-    table.width = pct(100)
+    table.width = pct(80)
   ) %>%
   # Center-align all columns
   cols_align(
@@ -1008,12 +1005,11 @@ ggsave("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigur
 performance_metrics <- filtered_data %>%
   group_by(NumFeatures, Classifier) %>%
   summarise(
-    Mean_TestAUC = mean(TestAUC),
     Median_TestAUC = median(TestAUC),
-    Max_TestAUC = max(TestAUC),
     Min_TestAUC = min(TestAUC),
+    Max_TestAUC = max(TestAUC),
     Spread = max(TestAUC) - min(TestAUC)
-  )
+  ) %>% ungroup()
 performance_metrics
 ```
 
@@ -1024,25 +1020,18 @@ performance_table <- performance_metrics %>%
     title = md("**Performance Metrics by Number of Variable Features and Classifier**"),
     subtitle = md("*Based on Test AUC values*")
   ) %>%
-  # Format the NumFeatures column to add "PCs" suffix
-  fmt_number(
-    columns = vars(NumFeatures),
-    decimals = 0,
-    pattern = "{x} PCs"
-  ) %>%
   # Format numeric columns to display three decimal places
   fmt_number(
-    columns = vars(Mean_TestAUC, Median_TestAUC, Max_TestAUC, Min_TestAUC, Spread),
+    columns = vars(Median_TestAUC, Max_TestAUC, Min_TestAUC, Spread),
     decimals = 3
   ) %>%
   # Rename columns for clarity
   cols_label(
     NumFeatures = "Number of Features",
     Classifier = "Classifier",
-    Mean_TestAUC = "Mean Test AUC",
     Median_TestAUC = "Median Test AUC",
-    Max_TestAUC = "Max Test AUC",
     Min_TestAUC = "Min Test AUC",
+    Max_TestAUC = "Max Test AUC",
     Spread = "AUC Spread"
   ) %>%
   # Bold the column labels
@@ -1425,15 +1414,11 @@ ggsave("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigur
 performance_metrics <- filtered_data %>%
   group_by(Disease, Classifier) %>%
   summarise(
-    Avg_NrFeats = mean(NumFeatures),
-    Min_NrFeats = min(NumFeatures),
-    Max_NrFeats = max(NumFeatures),
-    Mean_TestAUC = mean(TestAUC),
-    Median_TestAUC = median(TestAUC),
-    Max_TestAUC = max(TestAUC),
-    Min_TestAUC = min(TestAUC),
-    Spread = max(TestAUC) - min(TestAUC)
-  )
+    Avg_NrFeats = round(mean(NumFeatures)),
+    FeatureRange = paste0(min(NumFeatures), " - ", max(NumFeatures)),
+    Median_TestAUC = round(median(TestAUC), 3),
+    AUCrange = paste0(format(round(min(TestAUC), 3), nsmall = 3), " - ", format(round(max(TestAUC),3), nsmall = 3))
+  ) %>% ungroup()
 performance_metrics
 ```
 
@@ -1444,22 +1429,13 @@ performance_table <- performance_metrics %>%
     title = md("**Performance Metrics by Disease and Classifier**"),
     subtitle = md("*Based on Test AUC values*")
   ) %>%
-  fmt_number(
-    columns = vars(Mean_TestAUC, Median_TestAUC, Max_TestAUC, Min_TestAUC, Spread),
-    decimals = 3
-  ) %>%
-  # Rename columns for clarity
   cols_label(
     Disease = "Disease",
     Classifier = "Classifier",
-    Avg_NrFeats = "Average Number of Features",
-    Min_NrFeats = "Min Number of Features",
-    Max_NrFeats = "Max Number of Features",
-    Mean_TestAUC = "Mean Test AUC",
+    Avg_NrFeats = "Average Nr Features",
+    FeatureRange = "Feature Range",
     Median_TestAUC = "Median Test AUC",
-    Max_TestAUC = "Max Test AUC",
-    Min_TestAUC = "Min Test AUC",
-    Spread = "AUC Spread"
+    AUCrange = "AUC Spread (Min - Max)"
   ) %>%
   # Bold the column labels
   tab_style(
@@ -2064,24 +2040,24 @@ gtsave(gt_tbl, "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/The
 ```
 
 ```{r}
-summary_by_NrRandomFeatures <- all_results_allcelltypes %>%
+summary_by_NrRandomFeatures <- all_results_allcelltypes %>% 
   filter(Analysis %in% desired_order) %>%
   mutate(Analysis = factor(Analysis, levels = desired_order)) %>%
   subset(!FoldNumber %in% c("36001-36601", "36001-36494")) %>%
   group_by(Analysis) %>%
   summarise(
-    mean_TestAUC = mean(TestAUC, na.rm = TRUE),
+    Avg_NrFeats = round(mean(NumFeatures)),
     median_TestAUC = median(TestAUC, na.rm = TRUE),
     min_TestAUC = min(TestAUC, na.rm = TRUE),
     max_TestAUC = max(TestAUC, na.rm = TRUE),
     spread = max_TestAUC  - min_TestAUC
-  )
+  ) %>% ungroup()
 
 print(summary_by_NrRandomFeatures)
 ```
 
 ```{r}
-gt_tbl <- gt(summary_by_NrRandomFeatures)
+gt_tbl <- gt(summary_by_NrRandomFeatures %>% select(-Analysis))
 
 # Customize the table
 gt_tbl <- gt_tbl %>%
@@ -2089,18 +2065,18 @@ gt_tbl <- gt_tbl %>%
     title = "Summary of Classification Results per Nr of Random Features"
   ) %>%
   fmt_number(
-    columns = vars(mean_TestAUC, median_TestAUC, min_TestAUC, max_TestAUC, spread),
+    columns = vars(median_TestAUC, min_TestAUC, max_TestAUC, spread),
     decimals = 3
   ) %>%
   cols_label(
-    mean_TestAUC = "Mean Test AUC",
+    Avg_NrFeats = "Number of Features",
     median_TestAUC = "Median Test AUC",
     min_TestAUC = "Min Test AUC",
     max_TestAUC = "Max Test AUC",
-    spread = "Spread"
+    spread = "AUC Spread"
   ) %>%
   tab_options(
-    table.width = pct(100)
+    table.width = pct(80)
   ) %>%
   cols_align(
     align = "center",
@@ -2144,27 +2120,29 @@ ggsave(filename = "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/
 
 #COMBINED
 ```{r}
-desired_order <- c("500RandomFeatures", "1000RandomFeatures", "2000RandomFeatures", "3000RandomFeatures", "TopPCs", "MostVariableFeatures", "DE/WGCNA")
+desired_order <- c("RandomFeatures", "TopPCs", "MostVariableFeatures", "DE/WGCNA")
 
 summary_by_analysis <- all_results_allcelltypes %>%
   subset(!FoldNumber %in% c("36001-36601", "36001-36494")) %>%
   filter(Analysis != "GRN") %>%
+  mutate(Analysis = ifelse(grepl("RandomFeatures", Analysis), "RandomFeatures", Analysis)) %>%
   mutate(Analysis = factor(Analysis, levels = desired_order)) %>%
-  group_by(Analysis) %>%
+  mutate(Analysis = as.character(Analysis)) %>%
+  group_by(Analysis, Classifier) %>%
   summarise(
     Avg_NrFeats = round(mean(NumFeatures)),
-    Min_NrFeats = min(NumFeatures),
-    Max_NrFeats = max(NumFeatures),
-    Mean_TestAUC = mean(TestAUC),
-    Median_TestAUC = median(TestAUC),
-    Max_TestAUC = max(TestAUC),
-    Min_TestAUC = min(TestAUC),
-    Spread = max(TestAUC) - min(TestAUC)
+    FeatureRange = paste0(min(NumFeatures), " - ", max(NumFeatures)),
+    Median_TestAUC = round(median(TestAUC), 3),
+    AUCrange = paste0(format(round(min(TestAUC), 3), nsmall = 3), " - ", format(round(max(TestAUC),3), nsmall = 3))
   ) %>%
-  arrange(Analysis)
+  arrange(factor(Analysis, levels = desired_order)) %>%
+  ungroup()
 
 print(summary_by_analysis)
 ```
+
+
+
 
 ```{r}
 gt_tbl <- gt(summary_by_analysis)
@@ -2174,53 +2152,32 @@ gt_tbl <- gt_tbl %>%
   tab_header(
     title = "Summary of Classification Results per Feature Extraction Method"
   ) %>%
-  fmt_number(
-    columns = vars(Mean_TestAUC, Median_TestAUC, Min_TestAUC, Max_TestAUC, Spread),
-    decimals = 3
-  ) %>%
   cols_label(
-    Avg_NrFeats = "Mean Nr Features",
-    Min_NrFeats = "Min Nr Features",
-    Max_NrFeats = "Max Nr Features",
-    Mean_TestAUC = "Mean Test AUC",
+    Analysis = "Feature Extraction Method",
+    Classifier = "Classifier",
+    Avg_NrFeats = "Average Nr Features",
+    FeatureRange = "Feature Range",
     Median_TestAUC = "Median Test AUC",
-    Min_TestAUC = "Min Test AUC",
-    Max_TestAUC = "Max Test AUC",
-    Spread = "Spread"
+    AUCrange = "AUC Spread (Min - Max)"
   ) %>%
   tab_options(
-    table.width = pct(100)
+    table.width = pct(90),
+    row_group.as_column = FALSE  
+  ) %>%
+  cols_width(
+    vars(Analysis) ~ px(150),
+    vars(Classifier) ~ px(100),
+    everything() ~ px(100)
   ) %>%
   cols_align(
     align = "center",
     columns = everything()
-  )
+  ) 
 
 gtsave(gt_tbl, "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/SummaryByAnalysisTable.png", vwidth = 1000)
 ```
 
 
-
-
-
-```{r}
-summary_by_disease <- all_results_allcelltypes %>%
-  subset(!FoldNumber %in% c("36001-36601", "36001-36494")) %>%
-  filter(Analysis != "GRN") %>%
-  group_by(Disease) %>%
-  summarise(
-    Avg_NrFeats = mean(NumFeatures),
-    Min_NrFeats = min(NumFeatures),
-    Max_NrFeats = max(NumFeatures),
-    Mean_TestAUC = mean(TestAUC),
-    Median_TestAUC = median(TestAUC),
-    Max_TestAUC = max(TestAUC),
-    Min_TestAUC = min(TestAUC),
-    Spread = max(TestAUC) - min(TestAUC)
-  )
-
-print(summary_by_disease)
-```
 
 ```{r}
 summary_by_analysis_disease <- all_results_allcelltypes %>%

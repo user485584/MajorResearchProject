@@ -1,0 +1,836 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+# Load libraries
+library(tidyverse)
+library(ggplot2)
+library(corrplot)
+library(cowplot)
+library(reshape2)
+library(patchwork)
+library(ggpubr)
+library(gridExtra)
+library(gt)
+```
+
+```{r}
+all_results <- read_csv("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ResultFiles/All_results.csv")
+data <- all_results
+all_importances <- read_csv("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ResultFiles/Importances/All_importances.csv")
+
+all_results_allcelltypes <- all_results %>% filter(CellType == "all celltypes")
+```
+
+```{r}
+source("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Classifiers/Scripts/GetTrendlineData.R")
+```
+
+Table 1: Summary of Test AUC by Number of Random Features
+
+```{r}
+desired_order <- c("500RandomFeatures", "1000RandomFeatures", "2000RandomFeatures", "3000RandomFeatures")
+```
+
+
+```{r}
+summary_by_NrRandomFeatures <- all_results_allcelltypes %>% 
+  filter(Analysis %in% desired_order) %>%
+  mutate(Analysis = factor(Analysis, levels = desired_order)) %>%
+  subset(!FoldNumber %in% c("36001-36601", "36001-36494")) %>%
+  group_by(Analysis) %>%
+  summarise(
+    Avg_NrFeats = round(mean(NumFeatures)),
+    median_TestAUC = median(TestAUC, na.rm = TRUE),
+    min_TestAUC = min(TestAUC, na.rm = TRUE),
+    max_TestAUC = max(TestAUC, na.rm = TRUE),
+    spread = max_TestAUC  - min_TestAUC
+  ) %>% ungroup()
+
+print(summary_by_NrRandomFeatures)
+```
+
+```{r}
+gt_tbl <- gt(summary_by_NrRandomFeatures %>% select(-Analysis))
+
+# Customize the table
+gt_tbl <- gt_tbl %>%
+  tab_header(
+    title = "Summary of Classification Results per Nr of Random Features"
+  ) %>%
+  fmt_number(
+    columns = vars(median_TestAUC, min_TestAUC, max_TestAUC, spread),
+    decimals = 3
+  ) %>%
+  cols_label(
+    Avg_NrFeats = "Number of Features",
+    median_TestAUC = "Median Test AUC",
+    min_TestAUC = "Min Test AUC",
+    max_TestAUC = "Max Test AUC",
+    spread = "AUC Spread"
+  ) %>%
+  tab_options(
+    table.width = pct(80)
+  ) %>%
+  cols_align(
+    align = "center",
+    columns = everything()
+  )
+
+gtsave(gt_tbl, "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/RandomFeatures_table2.png", vwidth = 1000)
+```
+
+
+
+
+Figure 3: Classifier Performance Using Random Features
+
+```{r}
+filtered_data <- data %>%
+  filter(CellType == "all celltypes" & Analysis %in% c("500RandomFeatures", "1000RandomFeatures", "2000RandomFeatures", "3000RandomFeatures")) %>%
+  subset(!FoldNumber %in% c("36001-36601", "36001-36494"))
+
+# Create a function to generate the plot for all data points (no disease separation)
+create_combined_randomfeatures_plot <- function(plot_title) {
+  
+  # Create the boxplot with points overlay
+  p <- ggplot(filtered_data, aes(x = as.factor(NumFeatures), y = TestAUC, fill = Classifier, shape = Classifier)) +
+    geom_boxplot(
+      position = position_dodge(width = 0.75), 
+      color = "black", 
+      alpha = 0.7
+    ) +
+    labs(
+      title = plot_title, 
+      x = "Number of Features", 
+      y = "Test AUC"
+    ) +
+    scale_y_continuous(limits = c(0.5, 1), expand = c(0, 0)) +
+    scale_fill_manual(
+      values = c("randomForest" = "#1f78b4", "glm" = "#e31a1c"),
+      name = "Classifier"
+    ) +
+    scale_shape_manual(
+      values = c("randomForest" = 21, "glm" = 22)
+    ) +
+    theme_bw(base_size = 16) +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 20, face = "bold"),
+      axis.title = element_text(size = 18),
+      axis.text.x = element_text(angle = 0, hjust = 0.5, size = 16),
+      axis.text.y = element_text(size = 16),
+      legend.title = element_text(size = 18),
+      legend.text = element_text(size = 16),
+      legend.position = "top"
+    ) +
+    guides(
+      fill = guide_legend(title.position = "top", title.hjust = 0.5)
+    )
+  
+  return(p)
+}
+
+# Generate the plot for all combined data
+combined_plot <- create_combined_randomfeatures_plot("Test AUC by Number of Features (Random Features)")
+
+# Display the combined plot
+print(combined_plot)
+
+ggsave("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/Test.png", combined_plot, width = 12, height = 8, dpi = 300)
+```
+
+```{r}
+create_disease_plot <- function(plot_title) {
+  
+  # Create the boxplot with diseases on the x-axis
+  p <- ggplot(filtered_data, aes(x = Disease, y = TestAUC, fill = Classifier)) +
+    geom_boxplot(
+      position = position_dodge(width = 0.75), 
+      color = "black", 
+      alpha = 0.7,
+      outlier.shape = 21,     # Outliers shown as points
+      outlier.size = 3,       # Size of outlier points
+      outlier.fill = "black"  # Fill color of outlier points
+    ) +
+    labs(
+      title = plot_title, 
+      x = "Disease", 
+      y = "Test AUC"
+    ) +
+    scale_y_continuous(limits = c(0.5, 1), expand = c(0, 0)) +
+    scale_fill_manual(
+      values = c("randomForest" = "#1f78b4", "glm" = "#e31a1c"),
+      name = "Classifier"
+    ) +
+    theme_bw(base_size = 16) +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 20, face = "bold"),
+      axis.title = element_text(size = 18),
+      axis.text.x = element_text(angle = 0, hjust = 0.5, size = 16),
+      axis.text.y = element_text(size = 16),
+      legend.title = element_text(size = 18),
+      legend.text = element_text(size = 16),
+      legend.position = "top"
+    ) +
+    guides(
+      fill = guide_legend(title.position = "top", title.hjust = 0.5)
+    )
+  
+  return(p)
+}
+
+# Generate the plot for diseases
+disease_plot <- create_disease_plot("Test AUC by Disease (Random Features)")
+
+# Display the disease plot
+print(disease_plot)
+
+ggsave("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/Test2.png", disease_plot, width = 12, height = 8, dpi = 300)
+```
+
+```{r}
+final_combined_plot <- ggarrange(
+  combined_plot, disease_plot, 
+  ncol = 2,  # Put them next to each other
+  nrow = 1,  # One row
+  common.legend = TRUE,  # Use a common legend
+  legend = "top",  # Place the legend at the top
+  labels = c("A", "B"),  # Add labels A and B
+  label_size = 20
+)
+
+
+# Save the final combined plot as a high-resolution PNG file
+ggsave("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/RandomFeaturesPerformance.png", plot = grid.arrange(final_combined_plot), width = 16, height = 8, dpi = 300)
+
+final_combined_plot <- grid.arrange(
+  grobs = list(
+    arrangeGrob(combined_plot, top = textGrob("A", x = unit(0, "npc"), y = unit(1, "npc"), 
+                                              just = c("left", "top"), gp = gpar(fontsize = 20, fontface = "bold"))),
+    arrangeGrob(disease_plot, top = textGrob("B", x = unit(0, "npc"), y = unit(1, "npc"), 
+                                             just = c("left", "top"), gp = gpar(fontsize = 20, fontface = "bold")))
+  ),
+  ncol = 2, nrow = 1  # Set the number of columns and rows
+)
+
+# Display the combined plot
+print(final_combined_plot)
+
+# Save the combined plot using ggsave
+ggsave("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/RandomFeaturesPerformance.png", 
+       plot = final_combined_plot, width = 16, height = 8, dpi = 300)
+```
+
+
+
+Table 2: Test AUC Summary by Number of Variable Features and Classifier
+
+```{r}
+filtered_data <- data %>%
+  filter(CellType == "all celltypes" & Analysis == "MostVariableFeatures")
+
+performance_metrics <- filtered_data %>%
+  group_by(NumFeatures, Classifier) %>%
+  summarise(
+    Median_TestAUC = median(TestAUC),
+    Min_TestAUC = min(TestAUC),
+    Max_TestAUC = max(TestAUC),
+    Spread = max(TestAUC) - min(TestAUC)
+  ) %>% ungroup()
+performance_metrics
+```
+
+```{r}
+performance_table <- performance_metrics %>%
+  gt() %>%
+  tab_header(
+    title = md("**Performance Metrics by Number of Variable Features and Classifier**"),
+    subtitle = md("*Based on Test AUC values*")
+  ) %>%
+  # Format numeric columns to display three decimal places
+  fmt_number(
+    columns = vars(Median_TestAUC, Max_TestAUC, Min_TestAUC, Spread),
+    decimals = 3
+  ) %>%
+  # Rename columns for clarity
+  cols_label(
+    NumFeatures = "Number of Features",
+    Classifier = "Classifier",
+    Median_TestAUC = "Median Test AUC",
+    Min_TestAUC = "Min Test AUC",
+    Max_TestAUC = "Max Test AUC",
+    Spread = "AUC Spread"
+  ) %>%
+  # Bold the column labels
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_column_labels(everything())
+  ) %>%
+  # Increase the font sizes and adjust table width
+  tab_options(
+    table.font.size = 16,  # Increased from 12 to 16
+    heading.title.font.size = 18,  # Increased from 14 to 18
+    heading.subtitle.font.size = 16,  # Increased from 12 to 16
+    table.width = pct(100)
+  ) %>%
+  # Center-align all columns
+  cols_align(
+    align = "center",
+    columns = everything()
+  )
+
+gtsave(performance_table, "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/VarFeatsPerformanceMetrics_table.png", vwidth = 1000)
+
+# Display the table
+print(performance_table)
+```
+
+
+Figure 4: Classifier Performance Using the Most Variable Features
+
+```{r}
+filtered_data <- data %>%
+  filter(CellType == "all celltypes" & Analysis == "MostVariableFeatures")
+
+# Create a function to generate the plot for all data points (no disease separation)
+create_Varfeats_plot <- function(plot_title) {
+  
+  # Create the boxplot with points overlay
+  p <- ggplot(filtered_data, aes(x = as.factor(NumFeatures), y = TestAUC, fill = Classifier, shape = Classifier)) +
+    geom_boxplot(
+      position = position_dodge(width = 0.75), 
+      color = "black", 
+      alpha = 0.7
+    ) +
+    geom_jitter(
+      position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.75), 
+      size = 2, 
+      alpha = 0.8
+    ) +
+    labs(
+      x = "Number of Features", 
+      y = "Test AUC"
+    ) +
+    scale_y_continuous(limits = c(0.5, 1), expand = c(0, 0)) +
+    scale_fill_manual(
+      values = c("randomForest" = "#1f78b4", "glm" = "#e31a1c"),
+      name = "Classifier"
+    ) +
+    scale_shape_manual(
+      values = c("randomForest" = 21, "glm" = 22)
+    ) +
+    theme_bw(base_size = 16) +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 20, face = "bold"),
+      axis.title = element_text(size = 18),
+      axis.text.x = element_text(angle = 0, hjust = 0.5, size = 16),
+      axis.text.y = element_text(size = 16),
+      legend.title = element_text(size = 18),
+      legend.text = element_text(size = 16),
+      legend.position = "top"
+    ) +
+    guides(
+      fill = guide_legend(title.position = "top", title.hjust = 0.5)
+    )
+  
+  return(p)
+}
+
+# Generate the plot for all combined data
+combined_plot <- create_Varfeats_plot("Test AUC by Number of Features (Most Variable Features)")
+
+# Display the combined plot
+print(combined_plot)
+
+ggsave("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/VariableFeaturesTestAUC_NrFeatures.png", combined_plot, width = 12, height = 8, dpi = 300)
+```
+
+```{r}
+create_disease_plot <- function(plot_title) {
+  
+  # Create the boxplot with diseases on the x-axis
+  p <- ggplot(filtered_data, aes(x = Disease, y = TestAUC, fill = Classifier)) +
+    geom_boxplot(
+      position = position_dodge(width = 0.75), 
+      color = "black", 
+      alpha = 0.7,
+      outlier.shape = 21,     # Outliers shown as points
+      outlier.size = 3,       # Size of outlier points
+      outlier.fill = "black"  # Fill color of outlier points
+    ) +
+    labs(
+      x = "Disease", 
+      y = "Test AUC"
+    ) +
+    scale_y_continuous(limits = c(0.5, 1), expand = c(0, 0)) +
+    scale_fill_manual(
+      values = c("randomForest" = "#1f78b4", "glm" = "#e31a1c"),
+      name = "Classifier"
+    ) +
+    theme_bw(base_size = 16) +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 20, face = "bold"),
+      axis.title = element_text(size = 18),
+      axis.text.x = element_text(angle = 0, hjust = 0.5, size = 16),
+      axis.text.y = element_text(size = 16),
+      legend.title = element_text(size = 18),
+      legend.text = element_text(size = 16),
+      legend.position = "top"
+    ) +
+    guides(
+      fill = guide_legend(title.position = "top", title.hjust = 0.5)
+    )
+  
+  return(p)
+}
+
+# Generate the plot for diseases
+disease_plot <- create_disease_plot("")
+
+# Display the disease plot
+print(disease_plot)
+
+ggsave("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/VariableFeaturesTestAUC_Disease.png", disease_plot, width = 12, height = 8, dpi = 300)
+```
+
+
+```{r}
+# Define the labels "A" and "B" as grobs
+label_A <- textGrob("A", x = unit(0.02, "npc"), y = unit(0.95, "npc"), just = c("left", "top"), gp = gpar(fontsize = 20, fontface = "bold"))
+label_B <- textGrob("B", x = unit(0.02, "npc"), y = unit(0.95, "npc"), just = c("left", "top"), gp = gpar(fontsize = 20, fontface = "bold"))
+
+# Combine the plots with a common legend at the top
+final_combined_plot <- ggarrange(
+  combined_plot, disease_plot, 
+  ncol = 2,  # Two plots side by side
+  nrow = 1,  # One row
+  common.legend = TRUE,  # Use a common legend
+  legend = "top"  # Place the legend at the top
+)
+
+# Create a new arrangement with the labels "A" and "B"
+labeled_plots <- grid.arrange(
+  arrangeGrob(label_A, label_B, ncol = 2),  # Labels take minimal space
+  final_combined_plot,                      # Combined plot below the labels
+  ncol = 1,
+  heights = c(0.05, 0.95)  # Assign small height for labels, larger for the plots
+)
+
+# Display the final combined plot with labels
+grid.draw(labeled_plots)
+
+# Save the final combined plot as a high-resolution PNG file
+ggsave("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/VariableFeaturesPerformance_with_labels.png", 
+       plot = labeled_plots, width = 16, height = 8, dpi = 300)
+```
+
+
+
+Figure 5: Classifier Performance and Cell Type Analysis Using Most Variable Features
+
+```{r}
+slope_intercept_VariableFeatures <- get_slope_intercept_summary(filtered_data, plot = TRUE, combined = TRUE, plot_stats = TRUE)
+print(slope_intercept_VariableFeatures)
+ggsave("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/MostVariableFeatures_combined_scatterplotRegression.png", 
+       plot = slope_intercept_VariableFeatures$combined_plot, 
+       width = 16, height = 6, 
+       dpi = 300)
+```
+
+```{r}
+MostVariableFeatures <- all_results %>%
+  filter(Analysis == "MostVariableFeatures", CellType != "all celltypes") %>%
+  group_by(Disease, Classifier, CellType) %>%
+  summarise(
+    Mean_TestAUC = mean(TestAUC),
+    Median_TestAUC = median(TestAUC),
+    Max_TestAUC = max(TestAUC),
+    Min_TestAUC = min(TestAUC),
+    Spread = max(TestAUC) - min(TestAUC),
+    NrOfCells = round(mean(NrOfCells))
+  )
+
+cor_test_result <- cor.test(MostVariableFeatures$NrOfCells, MostVariableFeatures$Median_TestAUC, method = "spearman")
+
+# View the test result
+print(cor_test_result)
+```
+```{r}
+p <- ggplot(MostVariableFeatures, aes(x = NrOfCells, y = Median_TestAUC, color = CellType, shape = Classifier)) +
+  geom_point(size = 4, position = position_jitter(width = 0.2, height = 0)) +  # Increase dot size and jitter on x-axis
+  geom_smooth(aes(group = 1), method = "lm", se = TRUE, color = "black", linetype = "dashed") +
+  theme_minimal()
+
+# Calculate Spearman correlation
+cor_result <- cor.test(MostVariableFeatures$NrOfCells, MostVariableFeatures$Median_TestAUC, method = "spearman")
+
+# Extract correlation coefficient and p-value
+cor_coeff <- round(cor_result$estimate, 2)
+p_value <- cor_result$p.value
+
+# Format p-value for display
+if (p_value < 0.001) {
+  p_value_text <- "p < 0.001"
+} else {
+  p_value_text <- paste("p =", round(p_value, 3))
+}
+
+# Create the label text
+cor_text <- paste("Spearman r =", cor_coeff, ",", p_value_text)
+
+# Add correlation coefficient and p-value to the plot
+p <- p +
+  annotate(
+    "text",
+    x = Inf,
+    y = Inf,
+    label = cor_text,
+    hjust = 1.1,
+    vjust = 1.5,
+    size = 5,
+    fontface = "italic",
+    color = "black"
+  )
+
+# Customize the plot
+p <- p +
+  labs(
+    title = "Median Test AUC vs. Number of Cells",
+    x = "Number of Cells",
+    y = "Median Test AUC",
+    color = "Cell Type",
+    shape = "Classifier"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(face = "bold", size = 16),
+    axis.title = element_text(face = "bold"),
+    legend.title = element_text(face = "bold")
+  ) 
+
+# Display the plot
+print(p)
+```
+
+```{r}
+ggsave("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/VarFeatsMedian_TestAUC_vs_NrOfCells.png", plot = p, dpi = 300, width = 10, height = 7)
+```
+
+```{r}
+# Load the second and third plots from the PNG files
+plot_2 <- rasterGrob(readPNG("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/VarFeatsMedian_TestAUC_vs_NrOfCells.png"), 
+                     width = unit(1,"npc"), height = unit(1,"npc"))
+
+plot_3 <- rasterGrob(readPNG("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/Top2000VariableFeatures_Fold4_Combined_Excitatory_ROC kopie.png"), 
+                     width = unit(1,"npc"), height = unit(1,"npc"))
+
+# Convert the first combined ggarrange plot to a grob
+combined_plot_ABC <- as_grob(slope_intercept_VariableFeatures$combined_plot)
+
+# Create the final layout:
+final_combined_plot <- grid.arrange(
+  combined_plot_ABC,  # Top plot (A, B, C)
+  grid.arrange(
+    arrangeGrob(plot_2, top = textGrob("D", x = unit(0, "npc"), y = unit(1, "npc"), just = c("left", "top"), gp = gpar(fontsize = 20, fontface = "bold"))), 
+    arrangeGrob(plot_3, top = textGrob("E", x = unit(0, "npc"), y = unit(1, "npc"), just = c("left", "top"), gp = gpar(fontsize = 20, fontface = "bold"))), 
+    ncol = 2),  # Arrange plots D and E side by side
+  nrow = 2,  # Two rows (top = ABC, bottom = D/E)
+  heights = c(1, 1)  # Adjust the height proportions to give more space to the top plot
+)
+
+ggsave("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/CompositeFigureVariableFeatures.png", 
+       plot = final_combined_plot, width = 16, height = 12, dpi = 300)
+```
+
+
+
+
+Table 3: Test AUC Summary by Number of Principal Components and Classifier
+
+```{r}
+filtered_data <- data %>%
+  filter(CellType == "all celltypes" & Analysis == "TopPCs")
+
+performance_metrics <- filtered_data %>%
+  group_by(NumFeatures, Classifier) %>%
+  summarise(
+    Median_TestAUC = median(TestAUC),
+    Min_TestAUC = min(TestAUC),
+    Max_TestAUC = max(TestAUC),
+    Spread = max(TestAUC) - min(TestAUC)
+  ) %>% ungroup()
+```
+
+```{r}
+performance_table <- performance_metrics %>%
+  gt() %>%
+  tab_header(
+    title = md("**Performance Metrics by Number of Principal Components and Classifier**"),
+    subtitle = md("*Based on Test AUC values*")
+  ) %>%
+  # Format the NumFeatures column to add "PCs" suffix
+  fmt_number(
+    columns = vars(NumFeatures),
+    decimals = 0,
+    pattern = "{x} PCs"
+  ) %>%
+  # Format numeric columns to display three decimal places
+  fmt_number(
+    columns = vars(Median_TestAUC, Max_TestAUC, Min_TestAUC, Spread),
+    decimals = 3
+  ) %>%
+  # Rename columns for clarity
+  cols_label(
+    NumFeatures = "Number of PCs",
+    Classifier = "Classifier",
+    Median_TestAUC = "Median Test AUC",
+    Min_TestAUC = "Min Test AUC",
+    Max_TestAUC = "Max Test AUC",
+    Spread = "AUC Spread"
+  ) %>%
+  # Bold the column labels
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_column_labels(everything())
+  ) %>%
+  # Increase the font sizes and adjust table width
+  tab_options(
+    table.font.size = 16,  # Increased from 12 to 16
+    heading.title.font.size = 18,  # Increased from 14 to 18
+    heading.subtitle.font.size = 16,  # Increased from 12 to 16
+    table.width = pct(80)
+  ) %>%
+  # Center-align all columns
+  cols_align(
+    align = "center",
+    columns = everything()
+  )
+
+gtsave(performance_table, "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/TopPCsPerformanceMetrics_table.png", vwidth = 1000)
+
+# Display the table
+print(performance_table)
+```
+
+
+Figure 6: Classification Performance using Principal Components 
+
+```{r}
+create_combined_top_pcs_plot <- function(plot_title) {
+  
+  # Create the boxplot with points overlay
+  p <- ggplot(filtered_data, aes(x = as.factor(NumFeatures), y = TestAUC, fill = Classifier, shape = Classifier)) +
+    geom_boxplot(
+      position = position_dodge(width = 0.75), 
+      color = "black", 
+      alpha = 0.7
+    ) +
+    geom_jitter(
+      position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.75), 
+      size = 2, 
+      alpha = 0.8
+    ) +
+    labs(
+      title = plot_title, 
+      x = "Number of Features", 
+      y = "Test AUC"
+    ) +
+    scale_y_continuous(limits = c(0.5, 1), expand = c(0, 0)) +
+    scale_fill_manual(
+      values = c("randomForest" = "#1f78b4", "glm" = "#e31a1c"),
+      name = "Classifier"
+    ) +
+    scale_shape_manual(
+      values = c("randomForest" = 21, "glm" = 22)
+    ) +
+    theme_bw(base_size = 16) +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 20, face = "bold"),
+      axis.title = element_text(size = 18),
+      axis.text.x = element_text(angle = 0, hjust = 0.5, size = 16),
+      axis.text.y = element_text(size = 16),
+      legend.title = element_text(size = 18),
+      legend.text = element_text(size = 16),
+      legend.position = "top"
+    ) +
+    guides(
+      fill = guide_legend(title.position = "top", title.hjust = 0.5)
+    )
+  
+  return(p)
+}
+
+```
+
+```{r}
+create_disease_plot <- function(plot_title) {
+  
+  # Create the boxplot with diseases on the x-axis
+  p <- ggplot(filtered_data, aes(x = Disease, y = TestAUC, fill = Classifier)) +
+    geom_boxplot(
+      position = position_dodge(width = 0.75), 
+      color = "black", 
+      alpha = 0.7,
+      outlier.shape = 21,     # Outliers shown as points
+      outlier.size = 3,       # Size of outlier points
+      outlier.fill = "black"  # Fill color of outlier points
+    ) +
+    labs(
+      title = plot_title, 
+      x = "Disease", 
+      y = "Test AUC"
+    ) +
+    scale_y_continuous(limits = c(0.5, 1), expand = c(0, 0)) +
+    scale_fill_manual(
+      values = c("randomForest" = "#1f78b4", "glm" = "#e31a1c"),
+      name = "Classifier"
+    ) +
+    theme_bw(base_size = 16) +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 20, face = "bold"),
+      axis.title = element_text(size = 18),
+      axis.text.x = element_text(angle = 0, hjust = 0.5, size = 18),
+      axis.text.y = element_text(size = 16),
+      legend.title = element_text(size = 18),
+      legend.text = element_text(size = 16),
+      legend.position = "top"
+    ) +
+    guides(
+      fill = guide_legend(title.position = "top", title.hjust = 0.5)
+    )
+  
+  return(p)
+}
+```
+
+
+```{r}
+# Create plot A: Test AUC by Number of Features (TopPCs) without title
+combined_plot <- create_combined_top_pcs_plot("") + 
+  theme(legend.position = "none")  # Hide the legend for this plot
+
+# Create plot B: Test AUC by Disease (TopPCs) without title
+disease_plot <- create_disease_plot("") + 
+  theme(legend.position = "none")
+
+# Create plot C: Test AUC across Cell Types (TopPCs)
+TopPCsCelltype <- all_results %>%
+  filter(Analysis == "TopPCs") %>%
+  filter(CellType != "all celltypes")
+
+# Calculate the median TestAUC for each CellType
+median_auc <- TopPCsCelltype %>%
+  group_by(CellType) %>%
+  summarise(Median_TestAUC = median(TestAUC, na.rm = TRUE)) %>%
+  arrange(-Median_TestAUC)
+
+# Reorder CellType levels based on median TestAUC
+TopPCsCelltype$CellType <- factor(TopPCsCelltype$CellType, levels = median_auc$CellType)
+
+# Create the boxplot
+celltype_plot <- ggplot(TopPCsCelltype, aes(x = CellType, y = TestAUC, fill = Classifier)) +
+  geom_boxplot(
+    position = position_dodge(width = 0.75),
+    alpha = 0.7
+  ) +
+  labs(
+    x = "Cell Type",
+    y = "Test AUC"
+  ) +
+  theme_bw(base_size = 16) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 20, face = "bold"),
+    axis.title = element_text(size = 18),
+    axis.text.x = element_text(angle = 0, hjust = 0.5, size = 16),
+    axis.text.y = element_text(size = 16),
+    legend.title = element_text(size = 18),
+    legend.text = element_text(size = 16),
+    legend.position = "bottom"
+  ) +
+  scale_y_continuous(limits = c(0.5, 1), expand = c(0, 0)) +
+  scale_fill_manual(
+    values = c("randomForest" = "#1f78b4", "glm" = "#e31a1c"),
+    name = "Classifier"
+  ) +
+  guides(
+    fill = guide_legend(title.position = "top", title.hjust = 0.5)
+  )
+
+
+#Combine the three plots using grid.arrange, with Plot C taking the full bottom row
+final_combined_plot <- grid.arrange(
+  grobs = list(
+    arrangeGrob(combined_plot, top = textGrob("A", x = unit(0, "npc"), y = unit(1, "npc"), just = c("left", "top"), gp = gpar(fontsize = 20, fontface = "bold"))),
+    arrangeGrob(disease_plot, top = textGrob("B", x = unit(0, "npc"), y = unit(1, "npc"), just = c("left", "top"), gp = gpar(fontsize = 20, fontface = "bold"))),
+    arrangeGrob(celltype_plot, top = textGrob("C", x = unit(0, "npc"), y = unit(1, "npc"), just = c("left", "top"), gp = gpar(fontsize = 20, fontface = "bold")))
+  ),
+  layout_matrix = rbind(c(1, 2), c(3, 3))  # A and B side-by-side, C spans the entire row
+)
+
+# Save the plot
+ggsave("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/TopPCs_Combined_with_Labels.png", plot = final_combined_plot, width = 16, height = 12, dpi = 300)
+```
+
+
+
+
+Table 4: Test AUC Summary For DE/WGCNA Features by Disease and Classifier
+
+```{r}
+filtered_data <- data %>%
+  filter(CellType == "all celltypes" & Analysis == "DE/WGCNA")
+```
+
+```{r}
+performance_metrics <- filtered_data %>%
+  group_by(Disease, Classifier) %>%
+  summarise(
+    Avg_NrFeats = round(mean(NumFeatures)),
+    FeatureRange = paste0(min(NumFeatures), " - ", max(NumFeatures)),
+    Median_TestAUC = round(median(TestAUC), 3),
+    AUCrange = paste0(format(round(min(TestAUC), 3), nsmall = 3), " - ", format(round(max(TestAUC),3), nsmall = 3))
+  ) %>% ungroup()
+performance_metrics
+```
+
+```{r}
+performance_table <- performance_metrics %>%
+  gt() %>%
+  tab_header(
+    title = md("**Performance Metrics by Disease and Classifier**"),
+    subtitle = md("*Based on Test AUC values*")
+  ) %>%
+  cols_label(
+    Disease = "Disease",
+    Classifier = "Classifier",
+    Avg_NrFeats = "Average Nr Features",
+    FeatureRange = "Feature Range",
+    Median_TestAUC = "Median Test AUC",
+    AUCrange = "AUC Spread (Min - Max)"
+  ) %>%
+  # Bold the column labels
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_column_labels(everything())
+  ) %>%
+  # Increase the font sizes and adjust table width
+  tab_options(
+    table.font.size = 16,  # Increased from 12 to 16
+    heading.title.font.size = 18,  # Increased from 14 to 18
+    heading.subtitle.font.size = 16,  # Increased from 12 to 16
+    table.width = pct(100)
+  ) %>%
+  # Center-align all columns
+  cols_align(
+    align = "center",
+    columns = everything()
+  )
+
+gtsave(performance_table, "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/DEWGCNAPerformanceMetrics_table.png", vwidth = 1000)
+
+# Display the table
+print(performance_table)
+```
