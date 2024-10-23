@@ -107,10 +107,7 @@ To manage the high dimensionality of scRNA-seq data, various feature extraction 
 ## Model Training and Evaluation
 
 
-**Purpose**: To assess model performance and prevent data leakage using a five-fold cross-validation strategy.
-**Purpose**: To train logistic regression models with L1 regularisation for feature selection.
-**Purpose**: To train random forest classifiers for robust feature importance estimation.
-**Purpose**: To evaluate models using metrics such as Accuracy, AUC, Precision, Recall, and F1 Score.
+**Purpose**: (1) To train logistic regression models. (2) To train random forest classifiers. (3) To evaluate models using metrics such as Accuracy, AUC, Precision, Recall, and F1 Score.
 
 **Scripts:**
 - `{TrainClassifier.R}`
