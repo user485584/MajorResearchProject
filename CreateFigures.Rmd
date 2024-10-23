@@ -834,3 +834,543 @@ gtsave(performance_table, "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/
 # Display the table
 print(performance_table)
 ```
+
+
+
+Figure 7: Classifier Performance Using DE/WGCNA Features
+
+```{r}
+filtered_data <- data %>%
+  filter(CellType == "all celltypes" & Analysis == "DE/WGCNA")
+
+disease_plot <- create_disease_plot("")
+
+# Display the disease plot
+print(disease_plot)
+
+ggsave("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/DEWGCNATestAUC_Disease.png", disease_plot, width = 12, height = 8, dpi = 300)
+```
+
+```{r}
+create_combined_scatter_plot <- function(plot_title) {
+  
+  # Create the scatterplot with points overlay
+  p <- ggplot(filtered_data, aes(x = NumFeatures, y = TestAUC, color = Classifier, fill = Classifier, shape = Disease)) +
+    geom_point(size = 4, position = position_jitter(width = 0.2, height = 0)) +  # Scatterplot with different shapes for Disease
+    labs(
+      x = "Number of Features", 
+      y = "Test AUC"
+    ) +
+    scale_y_continuous(limits = c(0.5, 1), expand = c(0, 0)) +  # Y-axis limits from 0.5 to 1
+    scale_x_continuous(breaks = seq(0, 13000, by = 2000)) +
+    scale_fill_manual(
+      values = c("randomForest" = "#1f78b4", "glm" = "#e31a1c"),  # Fill colors for classifiers
+      name = "Classifier"
+    ) +
+    scale_color_manual(
+      values = c("randomForest" = "#1f78b4", "glm" = "#e31a1c"),  # Same shade of red/blue
+      name = "Classifier"
+    ) +
+    scale_shape_manual(
+      values = c("Alzheimers" = 21, "C9ALS" = 22, "SALS" = 24)  # Different shapes for each disease
+    ) +
+    theme_bw(base_size = 16) +  # Base theme
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 20, face = "bold"),
+      axis.title = element_text(size = 18),
+      axis.text.x = element_text(angle = 0, hjust = 0.5, size = 16),
+      axis.text.y = element_text(size = 16),
+      legend.title = element_text(size = 18),
+      legend.text = element_text(size = 16),
+      legend.position = "top"
+    ) +
+    guides(
+      fill = guide_legend(
+        title.position = "top",     # Title above
+        label.position = "right",   # Label and icon side by side (under title)
+        title.hjust = 0.5
+      ),  
+      shape = guide_legend(
+        title.position = "top",     # Title above
+        label.position = "right",   # Label and icon side by side (under title)
+        title.hjust = 0.5
+      )
+    )
+  
+  return(p)
+}
+
+# Generate the scatter plot for all combined data
+combined_scatter_plot <- create_combined_scatter_plot("")
+
+# Display the scatter plot
+print(combined_scatter_plot)
+
+# Save the scatter plot
+ggsave("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/DEWGCNATestAUC_ScatterPlot.png", 
+       combined_scatter_plot, width = 12, height = 8, dpi = 300)
+```
+
+```{r}
+label_A <- textGrob("A", x = unit(0.02, "npc"), y = unit(0.95, "npc"), just = c("left", "top"), gp = gpar(fontsize = 20, fontface = "bold"))
+label_B <- textGrob("B", x = unit(0.02, "npc"), y = unit(0.95, "npc"), just = c("left", "top"), gp = gpar(fontsize = 20, fontface = "bold"))
+
+# Arrange the two plots side by side
+final_combined_plot <- grid.arrange(
+  arrangeGrob(combined_scatter_plot, top = label_A),   # Scatterplot on the left with label A
+  arrangeGrob(disease_plot, top = label_B),            # Disease plot on the right with label B
+  ncol = 2,                                            # Two columns
+  widths = c(0.6, 0.4)                                 # 60% width for scatterplot, 40% width for disease plot
+)
+
+# Save the final combined plot
+ggsave("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/DEWGCNACombined_Scatter_Disease_Plots.png", 
+       plot = final_combined_plot, width = 16, height = 8, dpi = 300)
+```
+
+
+
+Figure 8: Classifier Performance Using DE/WGCNA Features Across Cell Types and Disease Datasets.
+
+```{r}
+slope_intercept_DEWGCNA <- get_slope_intercept_summary(filtered_data, plot = TRUE, combined = TRUE)
+print(slope_intercept_DEWGCNA)
+```
+
+```{r}
+regression_table <- slope_intercept_DEWGCNA$summary %>% 
+  dplyr::select(c(Disease, Classifier, slope, pval)) %>%
+  gt() %>%
+  tab_header(
+    title = md("**Regression Analysis by Disease and Classifier**"),
+    subtitle = md("*Based on Test AUC values*")
+  ) %>%
+  # Rename columns for clarity
+  cols_label(
+    Disease = "Disease",
+    Classifier = "Classifier",
+    slope = "Slope Coefficient",
+    pval = "p value"
+  ) %>%
+  # Bold the column labels
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_column_labels(everything())
+  ) %>%
+  # Increase the font sizes and adjust table width
+  tab_options(
+    table.font.size = 16,  # Increased from 12 to 16
+    heading.title.font.size = 18,  # Increased from 14 to 18
+    heading.subtitle.font.size = 16,  # Increased from 12 to 16
+    table.width = pct(50)
+  ) %>%
+  # Center-align all columns
+  cols_align(
+    align = "center",
+    columns = everything()
+  )
+
+gtsave(regression_table, "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/DEWGCNARegressionMetrics_table.png", vwidth = 1000)
+
+# Display the table
+print(regression_table)
+```
+
+```{r}
+DEWGCNA_celltypes <- all_results %>%
+  filter(Analysis == "DE/WGCNA") %>%
+  filter(CellType %in% c("Excitatory", "Inhibitory", "Astrocytes", "Microglia"))
+
+# Calculate the median TestAUC for each CellType to reorder
+median_auc <- DEWGCNA_celltypes %>%
+  group_by(CellType) %>%
+  summarise(Median_TestAUC = median(TestAUC, na.rm = TRUE)) %>%
+  arrange(-Median_TestAUC)
+
+# Reorder CellType levels based on median TestAUC
+DEWGCNA_celltypes$CellType <- factor(DEWGCNA_celltypes$CellType, levels = median_auc$CellType)
+
+# Create the boxplot in your preferred style
+celltypeplot <- ggplot(DEWGCNA_celltypes, aes(x = CellType, y = TestAUC, fill = Classifier)) +
+  geom_boxplot(
+    position = position_dodge(width = 0.75),
+    alpha = 0.7
+  ) +
+  facet_wrap(~Disease) +  # Create separate facets for each disease
+  labs(
+    x = "Cell Type",
+    y = "Test AUC"
+  ) +
+  theme_bw(base_size = 16) +
+  theme(
+    axis.title = element_text(size = 18),
+    axis.text.x = element_text(angle = 20, hjust = 0.5, vjust = 0.5, size = 16),
+    axis.text.y = element_text(size = 16),
+    legend.title = element_text(size = 18),
+    legend.text = element_text(size = 16),
+    legend.position = "top"
+  ) +
+  scale_y_continuous(limits = c(0.5, 1), expand = c(0, 0)) +
+  scale_fill_manual(
+    values = c("randomForest" = "#1f78b4", "glm" = "#e31a1c"),
+    name = "Classifier"
+  ) +
+  guides(
+    fill = guide_legend(title.position = "top", title.hjust = 0.5)
+  )
+
+# Display the plot
+print(celltypeplot)
+
+ggsave("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/DEWGCNACelltypeBoxplot_Diseases.png", celltypeplot, width = 14, height = 8, dpi = 300)
+```
+
+```{r}
+# Load the second and third plots from the PNG files
+plot_2 <- rasterGrob(readPNG("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/DEWGCNARegressionMetrics_table.png"), 
+                     width = unit(1,"npc"), height = unit(1,"npc"))
+
+plot_3 <- rasterGrob(readPNG("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/DEWGCNA_Fold1_Combined_Excitatory_ROC kopie.png"), 
+                     width = unit(1,"npc"), height = unit(1,"npc"))
+
+# Convert the first combined ggarrange plot to a grob
+celltypeplotgrob <- as_grob(celltypeplot)
+
+# Create the final layout:
+final_combined_plot <- grid.arrange(
+  arrangeGrob(celltypeplotgrob, top = textGrob("A", x = unit(0, "npc"), y = unit(1, "npc"), just = c("left", "top"), gp = gpar(fontsize = 20, fontface = "bold"))),
+  grid.arrange(
+    arrangeGrob(plot_2, top = textGrob("B", x = unit(0, "npc"), y = unit(1, "npc"), just = c("left", "top"), gp = gpar(fontsize = 20, fontface = "bold"))), 
+    arrangeGrob(plot_3, top = textGrob("C", x = unit(0, "npc"), y = unit(1, "npc"), just = c("left", "top"), gp = gpar(fontsize = 20, fontface = "bold"))), 
+    ncol = 2),  
+  nrow = 2,  # Two rows 
+  heights = c(1.4, 1)  # Adjust the height proportions to give more space to the top plot
+)
+
+ggsave("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/CompositeFigureDEWGCNA.png", 
+       plot = final_combined_plot, width = 16, height = 12, dpi = 300)
+
+```
+
+
+
+Table 5: Test AUC Summary by Feature Extraction Method
+
+```{r}
+desired_order <- c("RandomFeatures", "TopPCs", "MostVariableFeatures", "DE/WGCNA")
+
+summary_by_analysis <- all_results_allcelltypes %>%
+  subset(!FoldNumber %in% c("36001-36601", "36001-36494")) %>%
+  filter(Analysis != "GRN") %>%
+  mutate(Analysis = ifelse(grepl("RandomFeatures", Analysis), "RandomFeatures", Analysis)) %>%
+  mutate(Analysis = factor(Analysis, levels = desired_order)) %>%
+  mutate(Analysis = as.character(Analysis)) %>%
+  group_by(Analysis, Classifier) %>%
+  summarise(
+    Avg_NrFeats = round(mean(NumFeatures)),
+    FeatureRange = paste0(min(NumFeatures), " - ", max(NumFeatures)),
+    Median_TestAUC = round(median(TestAUC), 3),
+    AUCrange = paste0(format(round(min(TestAUC), 3), nsmall = 3), " - ", format(round(max(TestAUC),3), nsmall = 3))
+  ) %>%
+  arrange(factor(Analysis, levels = desired_order)) %>%
+  ungroup()
+
+print(summary_by_analysis)
+```
+
+```{r}
+gt_tbl <- gt(summary_by_analysis)
+
+# Customize the table
+gt_tbl <- gt_tbl %>%
+  tab_header(
+    title = "Summary of Classification Results per Feature Extraction Method"
+  ) %>%
+  cols_label(
+    Analysis = "Feature Extraction Method",
+    Classifier = "Classifier",
+    Avg_NrFeats = "Average Nr Features",
+    FeatureRange = "Feature Range",
+    Median_TestAUC = "Median Test AUC",
+    AUCrange = "AUC Spread (Min - Max)"
+  ) %>%
+  tab_options(
+    table.width = pct(90),
+    row_group.as_column = FALSE  
+  ) %>%
+  cols_width(
+    vars(Analysis) ~ px(150),
+    vars(Classifier) ~ px(100),
+    everything() ~ px(100)
+  ) %>%
+  cols_align(
+    align = "center",
+    columns = everything()
+  ) 
+
+gtsave(gt_tbl, "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/SummaryByAnalysisTable.png", vwidth = 1000)
+```
+
+
+
+
+Figure 9: Correlation Between Number of Features and Classifier Performance by Feature Extraction Method 
+
+```{r}
+all_results_filtered <- all_results_allcelltypes %>%
+  subset(!FoldNumber %in% c("36001-36601", "36001-36494")) %>%
+  filter(Analysis != "GRN") %>%
+  mutate(Analysis = ifelse(grepl("RandomFeatures", Analysis), "RandomFeatures", Analysis))
+
+analysis_order <- all_results_filtered %>%
+  group_by(Analysis) %>%
+  summarise(Max_TestAUC = max(TestAUC, na.rm = TRUE)) %>%
+  arrange(-Max_TestAUC)
+
+# Step 2: Reorder the Analysis factor based on the overall Max_TestAUC
+all_results_filtered <- all_results_filtered %>%
+  mutate(Analysis = factor(Analysis, levels = analysis_order$Analysis))
+```
+
+
+```{r}
+# Step 1: Filter data for glm classifier and calculate correlation with p-values
+data_glm <- all_results_filtered %>%
+  filter(Classifier == "glm")
+
+# Calculate correlation and p-value for glm classifier
+correlation_results_glm <- data_glm %>%
+  group_by(Analysis) %>%
+  summarise(
+    correlation = cor(NumFeatures, TestAUC, method = "spearman"),
+    p_value = cor.test(NumFeatures, TestAUC, method = "spearman")$p.value,
+    slope = coef(lm(TestAUC ~ NumFeatures))[2],
+    minTestAUC = min(TestAUC),
+    maxTestAUC = max(TestAUC),
+    avgTestAUC = mean(TestAUC),
+    Classifier = "glm"
+  ) %>%
+  dplyr::select(Classifier, Analysis, correlation, p_value, slope, avgTestAUC, minTestAUC, maxTestAUC)
+
+# Step 2: Filter data for randomForest classifier and calculate correlation with p-values
+data_randomForest <- all_results_filtered %>%
+  filter(Classifier == "randomForest")
+
+# Calculate correlation and p-value for randomForest classifier
+correlation_results_randomForest <- data_randomForest %>%
+  group_by(Analysis) %>%
+  summarise(
+    correlation = cor(NumFeatures, TestAUC, method = "spearman"),
+    p_value = cor.test(NumFeatures, TestAUC, method = "spearman")$p.value,
+    slope = coef(lm(TestAUC ~ NumFeatures))[2],
+    minTestAUC = min(TestAUC),
+    maxTestAUC = max(TestAUC),
+    avgTestAUC = mean(TestAUC),
+    Classifier = "randomForest"
+  ) %>%
+  dplyr::select(Classifier, Analysis, correlation, p_value, slope, avgTestAUC, minTestAUC, maxTestAUC)
+
+# Combine correlation results
+combined_correlation_results <- bind_rows(correlation_results_glm, correlation_results_randomForest)
+
+# Step 3: Create scatter plot for glm classifier
+scatter_plot_glm <- ggplot(data_glm, aes(x = NumFeatures, y = TestAUC, color = Analysis)) +
+  geom_point(size = 3.5, alpha = 0.85) +  # Increase point size and adjust transparency for clarity
+  geom_smooth(method = "lm", se = FALSE, size = 1.8) +  # Thicker trendlines
+  scale_y_continuous(limits = c(0.5, 1)) +  # Set y-axis limits
+  scale_x_log10(breaks = c(10, 50, 100, 250, 500, 1000, 5000, 10000)) +  # Custom x-axis ticks
+  labs(
+       x = "Number of Features (Log Scale)", 
+       y = "Test AUC") +
+  scale_color_manual(values = c("#88CCEE", "#CC6677", "#DDCC77", "#117733")) +  # New academic-friendly color palette
+  theme_bw(base_size = 18) +  # Increase base size for better readability
+  theme(
+    legend.position = "top",  # Position the legend at the top
+    legend.title = element_text(size = 18),  # Further increase legend title size
+    legend.text = element_text(size = 16),  # Further increase legend text size
+    legend.key.size = unit(1.2, "cm"),  # Further increase the size of the legend keys
+    axis.text = element_text(size = 16),
+    axis.title = element_text(size = 18)
+  )
+
+# Step 4: Create scatter plot for randomForest classifier
+scatter_plot_randomForest <- ggplot(data_randomForest, aes(x = NumFeatures, y = TestAUC, color = Analysis)) +
+  geom_point(size = 3.5, alpha = 0.85) +  # Increase point size and adjust transparency for clarity
+  geom_smooth(method = "lm", se = FALSE, size = 1.8) +  # Thicker trendlines
+  scale_y_continuous(limits = c(0.5, 1)) +  # Set y-axis limits
+  scale_x_log10(breaks = c(10, 50, 100, 250, 500, 1000, 5000, 10000)) +  # Custom x-axis ticks
+  labs(
+       x = "Number of Features (Log Scale)", 
+       y = "Test AUC") +
+  scale_color_manual(values = c("#88CCEE", "#CC6677", "#DDCC77", "#117733")) +  # New academic-friendly color palette
+  theme_bw(base_size = 18) +  # Increase base size for better readability
+  theme(
+    legend.position = "top",  # Position the legend at the top
+    legend.title = element_text(size = 18),  # Further increase legend title size
+    legend.text = element_text(size = 16),  # Further increase legend text size
+    legend.key.size = unit(1.2, "cm"),  # Further increase the size of the legend keys
+    axis.text = element_text(size = 16),
+    axis.title = element_text(size = 18)
+  )
+
+# Step 5: Combine the plots using ggarrange(), placing them next to each other
+combined_plot <- ggarrange(
+  scatter_plot_glm, scatter_plot_randomForest,
+  labels = "AUTO",
+  font.label = list(size = 20, face = "bold"),
+  ncol = 2, nrow = 1,  # Arrange plots side by side
+  common.legend = TRUE, legend = "top"  # Use a common legend for both plots
+)
+
+# Display the combined plot
+print(combined_correlation_results)
+print(combined_plot)
+
+# Step 6: Save the combined plot as a high-resolution image for publication
+ggsave("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/CorrelationFeaturesAUCallAnalyses.png", combined_plot, width = 16, height = 9, dpi = 300)
+```
+
+```{r}
+gt_tbl <- gt(combined_correlation_results %>% dplyr::select(Classifier, Analysis, correlation, p_value, slope))
+
+# Customize the table
+gt_tbl <- gt_tbl %>%
+  tab_header(
+    title = "Summary of Correlation Results per Feature Extraction Method and Classifier"
+  ) %>%
+  fmt_number(
+    columns = vars(correlation),
+    decimals = 3
+  ) %>%
+  cols_label(
+    Classifier = "Classifier",
+    Analysis = "Feature Extraction Method",
+    correlation = "Spearman Correlation",
+    p_value = "P-value",
+    slope = "Slope"
+  ) %>%
+  tab_options(
+    table.width = px(1100)
+  ) %>%
+  cols_align(
+    align = "center",
+    columns = everything()
+  )
+
+gtsave(gt_tbl, "/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/CorrelationResultsByAnalysis.png", vwidth = 1150)
+```
+
+```{r}
+# Load the second and third plots from the PNG files
+plot_1 <- rasterGrob(readPNG("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/CorrelationFeaturesAUCallAnalyses.png"), 
+                     width = unit(1,"npc"), height = unit(1,"npc"))
+
+plot_2 <- rasterGrob(readPNG("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/CorrelationResultsByAnalysis.png"), 
+                     width = unit(1,"npc"), height = unit(1,"npc"))
+
+
+# Create the final layout:
+final_combined_correlation <- grid.arrange(
+    arrangeGrob(plot_1), 
+    arrangeGrob(plot_2, top = textGrob("C", x = unit(0, "npc"), y = unit(1, "npc"), just = c("left", "top"), gp = gpar(fontsize = 20, fontface = "bold"))), 
+    ncol = 1,  
+    nrow = 2,  # Two rows 
+    heights = c(1.5, 1)  # Adjust the height proportions to give more space to the top plot
+)
+
+ggsave("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/CompositeFigureCorrelationAnalysis.png", 
+       plot = final_combined_correlation, width = 16, height = 12, dpi = 300)
+```
+
+
+
+
+Figure 10: Classifier Performance Across Feature Extraction Methods and Disease Datasets
+
+```{r}
+create_plot <- function(disease_name, plot_title, show_x_axis = TRUE) {
+  
+  # Filter data for the specific disease
+  disease_data <- all_results_filtered %>%
+    filter(Disease == disease_name)
+  
+  # Create the boxplot
+  p <- ggplot(disease_data, aes(x = Analysis, y = TestAUC, fill = Classifier)) +
+    geom_boxplot(
+      position = position_dodge(width = 0.75), 
+      alpha = 0.7
+    ) +
+    labs(
+      title = plot_title,
+      x = "Analysis",  # We'll modify this later if needed
+      y = "Test AUC"
+    ) +
+    theme_bw(base_size = 16) +  # Use a theme similar to the provided example
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 18, face = "bold"),
+      axis.title = element_text(size = 18),
+      axis.text.x = element_text(angle = 0, hjust = 0.5, size = 16),
+      axis.text.y = element_text(size = 16),
+      legend.title = element_text(size = 18),
+      legend.text = element_text(size = 16),
+      legend.position = "top"
+    ) +
+    scale_y_continuous(limits = c(0.5, 1), expand = c(0, 0)) +
+    scale_fill_manual(
+      values = c("randomForest" = "#1f78b4", "glm" = "#e31a1c"),
+      name = "Classifier"
+    ) +
+    guides(
+      fill = guide_legend(title.position = "top", title.hjust = 0.5)
+    )
+  
+  # Conditionally remove x-axis elements if show_x_axis is FALSE
+  if (!show_x_axis) {
+    p <- p + theme(
+      axis.title.x = element_blank(),
+      axis.text.x = element_blank(),
+      axis.ticks.x = element_blank()
+    )
+  }
+  
+  return(p)
+}
+
+# Step 4: Create plots for each disease
+
+# Alzheimers (no x-axis text and title)
+plot_alzheimers <- create_plot("Alzheimers", "Alzheimers", show_x_axis = FALSE)
+
+# C9ALS (no x-axis text and title)
+plot_c9als <- create_plot("C9ALS", "C9ALS", show_x_axis = FALSE)
+
+# SALS (show x-axis text and title)
+plot_sals <- create_plot("SALS", "SALS", show_x_axis = TRUE)
+
+# Step 5: Combine the plots using ggarrange(), placing them below each other with equal plot sizes
+combined_plot <- ggarrange(
+  plot_alzheimers, plot_c9als, plot_sals,
+  ncol = 1, nrow = 3,  # Arrange plots in a single column, three rows
+  labels = "AUTO",
+  font.label = list(size = 20, face = "bold"),
+  heights = c(1, 1, 1.2),  # Adjust heights to ensure equal plot sizes (extra space for the bottom plot)
+  common.legend = TRUE, legend = "top"  # Use a common legend for all plots
+)
+
+# Display the combined plot
+print(combined_plot)
+```
+
+```{r}
+ggsave("/Users/rutger/Desktop/Bureaublad/School/Master/Stage/Results/ThesisFigures/AllAnalysesBoxplot.png", combined_plot, width = 10, height = 14, dpi = 300)
+```
+
+
+
+
+Rest of the Figures and Tables are in either DifferentialExpressionAnalysis.Rmd or EnrichmentAnalysis.Rmd
+
+
+
+
+
