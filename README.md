@@ -161,7 +161,7 @@ To manage the high dimensionality of scRNA-seq data, various feature extraction 
 
 ## Visualisation
 
-**Purpose**: To create visual representations of the data and analysis results, including UMAP plots, volcano plots, bar plots, and ROC curves.
+**Purpose**: To create visual representations of the data and analysis results, including UMAP plots, box plots, bar plots, and ROC curves.
 
 **Scripts:**
 - `{CreateUMAPplots.Rmd}`
