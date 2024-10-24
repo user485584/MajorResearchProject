@@ -1,4 +1,5 @@
-# Major Research Project: Decoding Neurodegeneration: Leveraging Machine Learning Approaches to Classify Single Cells and Identify Transcriptomic Features in Alzheimer’s Disease and ALS
+# Major Research Project: 
+# Decoding Neurodegeneration: Leveraging Machine Learning Approaches to Classify Single Cells and Identify Transcriptomic Features in Alzheimer’s Disease and ALS
 
 Welcome to the **Major Research Project** repository. This repository contains all the scripts and data necessary to reproduce the analyses presented in the thesis. The README file serves as a bridge between the methods section of the thesis and the scripts available in this GitHub repository, guiding you through the workflow and linking each methodological step to the corresponding scripts.
 
@@ -161,7 +162,8 @@ To manage the high dimensionality of scRNA-seq data, various feature extraction 
 
 ## Visualisation
 
-**Purpose**: To create visual representations of the data and analysis results, including UMAP plots, box plots, bar plots, and ROC curves.
+**Purpose**: To create visual representations of the data and analysis results, including UMAP plots, box
+plots, bar plots, and ROC curves.
 
 **Scripts:**
 - `{CreateUMAPplots.Rmd}`
